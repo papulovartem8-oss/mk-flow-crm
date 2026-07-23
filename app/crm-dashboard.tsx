@@ -866,7 +866,7 @@ function Overview({
           label="Всего лидов"
           value={periodData.leads}
           meta={`${periodData.delta} к прошлому периоду`}
-          accent="#bdff38"
+          accent="#f7c900"
           icon="◫"
           onClick={() => setMetricModal("leads")}
         />
@@ -874,7 +874,7 @@ function Overview({
           label="Общая сумма"
           value={periodData.revenue}
           meta="Чистыми 2 137 400 ₽"
-          accent="#46d9ff"
+          accent="#ffb800"
           icon="₽"
           onClick={() => setMetricModal("revenue")}
         />
@@ -882,7 +882,7 @@ function Overview({
           label="Конверсия"
           value={periodData.conversion}
           meta="+3,8% по источникам"
-          accent="#a78bfa"
+          accent="#fcd34d"
           icon="%"
           onClick={() => setMetricModal("conversion")}
         />
@@ -890,7 +890,7 @@ function Overview({
           label="Пользователей"
           value="18"
           meta="13 активны сейчас"
-          accent="#ffb35c"
+          accent="#eab308"
           icon="◎"
           onClick={() => setMetricModal("users")}
         />
@@ -898,7 +898,7 @@ function Overview({
           label="Входов сегодня"
           value="42"
           meta="Средняя сессия 2 ч 18 мин"
-          accent="#5eead4"
+          accent="#f59e0b"
           icon="↗"
           onClick={() => setMetricModal("sessions")}
         />
