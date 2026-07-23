@@ -20,23 +20,23 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = `${protocol}://${host}`;
 
   return {
-    title: "M8 CRM",
+    title: "Платформа M&K",
     description: "Платформа управления лидами, офферами и командами.",
     icons: {
-      icon: "/og.png",
-      shortcut: "/og.png",
+      icon: "/mk-logo.jpg",
+      shortcut: "/mk-logo.jpg",
     },
     openGraph: {
-      title: "M8 CRM",
+      title: "Платформа M&K",
       description: "Лиды. Офферы. Команды. Результат.",
-      images: [{ url: `${origin}/og.png`, width: 1200, height: 630 }],
+      images: [{ url: `${origin}/mk-logo.jpg`, width: 1212, height: 1208 }],
       type: "website",
     },
     twitter: {
-      card: "summary_large_image",
-      title: "M8 CRM",
+      card: "summary",
+      title: "Платформа M&K",
       description: "Лиды. Офферы. Команды. Результат.",
-      images: [`${origin}/og.png`],
+      images: [`${origin}/mk-logo.jpg`],
     },
   };
 }

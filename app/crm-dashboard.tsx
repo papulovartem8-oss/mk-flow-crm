@@ -604,10 +604,12 @@ export function CrmDashboard() {
     <div className="app-shell">
       <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
         <button className="brand" onClick={() => navigate("overview")}>
-          <span className="brand-mark">M8</span>
+          <span className="brand-mark">
+            <img src="/mk-logo.jpg" alt="Логотип M&K" />
+          </span>
           <span>
-            <strong>M8 CRM</strong>
-            <small>LEAD CONTROL</small>
+            <strong>Платформа M&K</strong>
+            <small>УПРАВЛЕНИЕ ЛИДАМИ</small>
           </span>
         </button>
 
@@ -1424,7 +1426,7 @@ function PartnerView({ setMetricModal }: { setMetricModal: (type: string) => voi
   return (
     <>
       <div className="partner-hero">
-        <div><span className="eyebrow">M8 PARTNERS</span><h1>Привет, Сергей!</h1><p>У тебя 24 активных лида и новый уровень уже близко.</p></div>
+        <div><span className="eyebrow">M&K PARTNERS</span><h1>Привет, Сергей!</h1><p>У тебя 24 активных лида и новый уровень уже близко.</p></div>
         <div className="partner-balance"><span>Доступно к выводу</span><strong>86 420 ₽</strong><button onClick={() => setMetricModal("withdraw")}>Заказать выплату</button></div>
       </div>
       <div className="partner-grid">
@@ -1474,7 +1476,7 @@ function AccessView({
         <Panel title="Ключи доступа" subtitle="Для регистрации новых участников">
           <div className="access-keys">
             {[
-              ["M8-TEAM-2026", "Менеджер", "12 / 25", "31.08.2026"],
+              ["MK-TEAM-2026", "Менеджер", "12 / 25", "31.08.2026"],
               ["LEAD-SILVER", "Лидогенератор", "4 / 20", "15.08.2026"],
               ["ADMIN-ONE", "Администратор", "1 / 2", "01.09.2026"],
             ].map((key) => <div key={key[0]}><code>{key[0]}</code><span><strong>{key[1]}</strong><small>Использовано {key[2]} · до {key[3]}</small></span><button>Копировать</button></div>)}
@@ -1567,7 +1569,7 @@ function SettingsView({ showToast }: { showToast: (message: string) => void }) {
       <div className="settings-grid">
         <Panel title="Профиль компании" subtitle="Основные данные">
           <div className="form-grid">
-            <label><span>Название</span><input defaultValue="M8 Platform" /></label>
+            <label><span>Название</span><input defaultValue="Платформа M&K" /></label>
             <label><span>Часовой пояс</span><select defaultValue="Екатеринбург"><option>Екатеринбург</option><option>Москва</option></select></label>
             <label className="full"><span>Email администратора</span><input defaultValue="admin@m8.team" /></label>
             <button className="primary-button" onClick={() => showToast("Настройки компании сохранены")}>Сохранить</button>
