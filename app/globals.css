@@ -3402,3 +3402,473 @@ textarea,
     padding: 0 16px;
   }
 }
+
+/* M&K readability pass — comfortable desktop scale and crisp text */
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.brand small {
+  font-size: 10px;
+}
+
+.nav-list button {
+  font-size: 14px;
+}
+
+.nav-list button b,
+.sidebar-foot strong {
+  font-size: 11px;
+}
+
+.sidebar-foot small {
+  font-size: 10px;
+}
+
+.global-search input {
+  font-size: 14px;
+}
+
+.global-search kbd,
+.icon-button {
+  font-size: 11px;
+}
+
+.avatar-button {
+  font-size: 12px;
+}
+
+.page-title h1 {
+  font-size: clamp(34px, 2.6vw, 46px);
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.page-title p,
+.partner-hero p {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.eyebrow {
+  font-size: 11px;
+}
+
+.period-control button,
+.ai-brief strong,
+.ai-brief p,
+.ai-brief button {
+  font-size: 12px;
+}
+
+.ai-brief p {
+  line-height: 1.55;
+}
+
+.ai-mark {
+  font-size: 11px;
+}
+
+.kpi-label {
+  font-size: 12px;
+}
+
+.kpi-card > strong {
+  font-size: clamp(20px, 1.45vw, 26px);
+}
+
+.kpi-meta {
+  font-size: 11px;
+}
+
+.kpi-arrow {
+  font-size: 14px;
+}
+
+.panel-head h3 {
+  font-size: 15px;
+}
+
+.panel-head p,
+.text-button,
+.chart-summary span {
+  font-size: 12px;
+}
+
+.bar-column > span,
+.donut-center span {
+  font-size: 11px;
+}
+
+.legend > div,
+.legend strong {
+  font-size: 12px;
+}
+
+.status-grid > button > span:last-child,
+.status {
+  font-size: 11px;
+}
+
+.rank,
+.ranking > button > strong {
+  font-size: 12px;
+}
+
+.rank-name strong {
+  font-size: 13px;
+}
+
+.rank-name small,
+.live-pill {
+  font-size: 11px;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 42px;
+  padding-inline: 16px;
+  font-size: 12px;
+}
+
+.field-search {
+  height: 44px;
+}
+
+.field-search input,
+.toolbar select {
+  font-size: 12px;
+}
+
+.toolbar select {
+  height: 44px;
+}
+
+th {
+  height: 44px;
+  font-size: 10px;
+  letter-spacing: 0.055em;
+}
+
+td {
+  height: 68px;
+  font-size: 12px;
+}
+
+.person-cell > span strong,
+.person-cell > strong {
+  font-size: 12px;
+}
+
+.person-cell > span small {
+  font-size: 10px;
+}
+
+.source-pill,
+.role-pill {
+  min-height: 25px;
+  padding-inline: 9px;
+  font-size: 11px;
+}
+
+.empty-state {
+  font-size: 13px;
+}
+
+.team-title h3 {
+  font-size: 15px;
+}
+
+.team-title p,
+.team-stats span {
+  font-size: 11px;
+}
+
+.team-stats strong {
+  font-size: 14px;
+}
+
+.mini-kpis span,
+.mini-kpis small,
+.user-state {
+  font-size: 11px;
+}
+
+.mini-kpis strong {
+  font-size: 23px;
+}
+
+.problem-categories small {
+  font-size: 11px;
+}
+
+.problem-main strong {
+  font-size: 13px;
+}
+
+.problem-main small,
+.recommendations p,
+.source-problems > div {
+  font-size: 11px;
+}
+
+.problem-main > span,
+.ai-score {
+  font-size: 10px;
+}
+
+.recommendations strong {
+  font-size: 12px;
+}
+
+.source-table span strong,
+.source-table > div > strong {
+  font-size: 12px;
+}
+
+.source-table span small {
+  font-size: 10px;
+}
+
+.leader-grid button > span strong {
+  font-size: 12px;
+}
+
+.leader-grid button > span small {
+  font-size: 10px;
+}
+
+.offer-categories span,
+.offer-categories small {
+  font-size: 11px;
+}
+
+.offer-categories b {
+  font-size: 13px;
+}
+
+.partner-balance span,
+.partner-balance button {
+  font-size: 11px;
+}
+
+.rank-ladder span,
+.rank-ladder small,
+.rank-hint {
+  font-size: 10px;
+}
+
+.rank-ladder strong {
+  font-size: 12px;
+}
+
+.partner-stats span,
+.partner-offers small,
+.partner-offers i {
+  font-size: 10px;
+}
+
+.partner-stats strong,
+.partner-offers strong {
+  font-size: 13px;
+}
+
+.access-keys code,
+.access-keys span strong {
+  font-size: 11px;
+}
+
+.access-keys span small,
+.access-keys button {
+  font-size: 10px;
+}
+
+.policy label strong {
+  font-size: 12px;
+}
+
+.policy label small {
+  font-size: 10px;
+}
+
+.integration-mark {
+  font-size: 11px;
+}
+
+.integration-grid h3 {
+  font-size: 13px;
+}
+
+.integration-grid p {
+  font-size: 11px;
+}
+
+.integration-state,
+.sync-log small,
+.sync-log time {
+  font-size: 10px;
+}
+
+.sync-log strong {
+  font-size: 12px;
+}
+
+.form-grid label span,
+.modal-form label span,
+.settings-statuses > div > span {
+  font-size: 11px;
+}
+
+.form-grid input,
+.form-grid select,
+.modal-form input,
+.modal-form select {
+  height: 44px;
+  font-size: 13px;
+}
+
+.auth-tabs span,
+.auth-preview input,
+.auth-preview select {
+  font-size: 12px;
+}
+
+.auth-preview small {
+  font-size: 10px;
+}
+
+.drawer-head > div > span,
+.drawer-head > div > p {
+  font-size: 11px;
+}
+
+.drawer-head h2 {
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+
+.issue-banner strong {
+  font-size: 12px;
+}
+
+.issue-banner p,
+.section-title > span {
+  font-size: 11px;
+}
+
+.section-title h3 {
+  font-size: 15px;
+}
+
+.contact-grid span,
+.edit-grid label > span,
+.session-grid span,
+.access-summary span {
+  font-size: 10px;
+}
+
+.contact-grid strong,
+.edit-grid strong,
+.session-grid strong,
+.access-summary strong {
+  font-size: 13px;
+}
+
+.lead-description {
+  font-size: 12px;
+}
+
+.edit-grid select,
+.edit-grid input {
+  height: 39px;
+  font-size: 12px;
+}
+
+.offer-top strong,
+.offer-meta strong,
+.finance-total strong {
+  font-size: 12px;
+}
+
+.offer-top p,
+.offer-meta span,
+.delivery,
+.finance-total small {
+  font-size: 10px;
+}
+
+.stage-pill {
+  font-size: 10px;
+}
+
+.finance-total > span {
+  font-size: 12px;
+}
+
+.comment-box textarea,
+.comment-box button {
+  font-size: 12px;
+}
+
+.timeline strong,
+.user-leads span strong {
+  font-size: 12px;
+}
+
+.timeline small,
+.user-leads span small {
+  font-size: 10px;
+}
+
+.user-hero-stats span,
+.user-hero-stats small {
+  font-size: 10px;
+}
+
+.user-hero-stats strong {
+  font-size: 15px;
+}
+
+.user-leads b,
+.metric-list b {
+  font-size: 12px;
+}
+
+.modal-head h2 {
+  font-size: 20px;
+}
+
+.modal-head p {
+  font-size: 11px;
+}
+
+.metric-list span strong {
+  font-size: 12px;
+}
+
+.metric-list span small {
+  font-size: 10px;
+}
+
+.toast {
+  font-size: 12px;
+}
+
+@media (max-width: 820px) {
+  .page-title h1 {
+    font-size: clamp(30px, 8vw, 40px);
+  }
+
+  .kpi-card > strong {
+    font-size: 21px;
+  }
+
+  th {
+    font-size: 10px;
+  }
+
+  td {
+    font-size: 12px;
+  }
+}
