@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type View =
   | "overview"
@@ -9,11 +9,13 @@ type View =
   | "users"
   | "problems"
   | "analytics"
+  | "structure"
   | "offers"
   | "partner"
   | "access"
   | "integrations"
-  | "settings";
+  | "settings"
+  | "reports";
 
 type LeadStatus = "Новый" | "В работе" | "Успешно" | "Отказ";
 type Period = "День" | "Неделя" | "Месяц";
@@ -62,6 +64,20 @@ type User = {
   topOffer: string;
 };
 
+type TeamReport = {
+  id: number;
+  teamLead: string;
+  team: string;
+  period: string;
+  completedTasks: string;
+  currentState: string;
+  blockers: string;
+  nextSteps: string;
+  completionPercent: number;
+  status: string;
+  createdAt: string;
+};
+
 const money = (value: number) =>
   new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -76,11 +92,13 @@ const NAV: { id: View; label: string; icon: string }[] = [
   { id: "users", label: "Пользователи", icon: "◎" },
   { id: "problems", label: "Проблемы", icon: "!" },
   { id: "analytics", label: "Аналитика", icon: "↗" },
+  { id: "structure", label: "Структура", icon: "⌁" },
   { id: "offers", label: "Офферы", icon: "◆" },
   { id: "partner", label: "Партнёрский кабинет", icon: "₽" },
   { id: "access", label: "Доступы", icon: "⌘" },
   { id: "integrations", label: "Интеграции", icon: "⇄" },
   { id: "settings", label: "Настройки", icon: "⚙" },
+  { id: "reports", label: "Отчёты", icon: "▤" },
 ];
 
 const INITIAL_LEADS: Lead[] = [
@@ -396,6 +414,54 @@ const INITIAL_USERS: User[] = [
   },
 ];
 
+const INITIAL_REPORTS: TeamReport[] = [
+  {
+    id: -1,
+    teamLead: "Анна Сидорова",
+    team: "Север",
+    period: "20–23 июля",
+    completedTasks:
+      "Перераспределили входящие лиды; закрыли 9 целевых действий; проверили статусы доставок ВТБ и Газпромбанка",
+    currentState:
+      "Команда держит темп. В работе 18 лидов, четыре клиента ожидают курьера, две выплаты подтверждаются.",
+    blockers: "По двум заявкам ВТБ нет подтверждения доставки.",
+    nextSteps: "Закрыть доставки до пятницы и проверить повторный контакт по отказам.",
+    completionPercent: 82,
+    status: "По плану",
+    createdAt: "2026-07-23T12:40:00.000Z",
+  },
+  {
+    id: -2,
+    teamLead: "Иван Петров",
+    team: "Альфа",
+    period: "20–23 июля",
+    completedTasks:
+      "Обработали 31 заявку; передали 12 РКО-офферов; выполнили 6 ЦД",
+    currentState:
+      "Основной поток идёт из Яндекса. Конверсия выросла, но часть клиентов задерживается на этапе согласования.",
+    blockers: "Три лида без контакта более 12 часов.",
+    nextSteps: "Повторный контакт, перераспределение очереди и сверка выплат.",
+    completionPercent: 68,
+    status: "Есть риски",
+    createdAt: "2026-07-23T11:15:00.000Z",
+  },
+  {
+    id: -3,
+    teamLead: "Мария Орлова",
+    team: "Вектор",
+    period: "20–23 июля",
+    completedTasks:
+      "Запустили новый источник; подготовили скрипт по РКО; закрыли 4 выплаты",
+    currentState:
+      "Новый источник даёт стабильный поток. Команда переключает часть менеджеров на дебетовые продукты.",
+    blockers: "",
+    nextSteps: "Собрать статистику по первому циклу и масштабировать связку.",
+    completionPercent: 91,
+    status: "По плану",
+    createdAt: "2026-07-23T09:30:00.000Z",
+  },
+];
+
 const sourceStats = [
   { name: "Авито", leads: 58, revenue: 842600, conversion: 32.4, color: "#bdff38" },
   { name: "Яндекс", leads: 42, revenue: 611900, conversion: 27.1, color: "#a78bfa" },
@@ -544,6 +610,8 @@ export function CrmDashboard() {
   const [period, setPeriod] = useState<Period>("Месяц");
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [reports, setReports] = useState<TeamReport[]>(INITIAL_REPORTS);
+  const [reportModal, setReportModal] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [metricModal, setMetricModal] = useState<string | null>(null);
@@ -556,6 +624,28 @@ export function CrmDashboard() {
   const [viewTransition, setViewTransition] = useState(false);
   const transitionTimeout = useRef<number | null>(null);
   const [connected, setConnected] = useState<string[]>(["Telegram-бот"]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/reports")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("reports unavailable");
+        return (await response.json()) as { reports?: TeamReport[] };
+      })
+      .then((payload) => {
+        if (!cancelled && payload.reports?.length) {
+          setReports(payload.reports);
+        }
+      })
+      .catch(() => {
+        // Демо-отчёты остаются видимыми, пока постоянное хранилище недоступно.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) ?? null;
   const selectedUser = users.find((user) => user.id === selectedUserId) ?? null;
@@ -606,6 +696,24 @@ export function CrmDashboard() {
       setView(next);
       setViewTransition(false);
     }, 220);
+  };
+
+  const saveReport = async (draft: Omit<TeamReport, "id" | "createdAt">) => {
+    const response = await fetch("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draft),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(payload.error ?? "Не удалось сохранить отчёт");
+    }
+
+    const payload = (await response.json()) as { report: TeamReport };
+    setReports((current) => [payload.report, ...current]);
+    setReportModal(false);
+    showToast("Отчёт тимлида сохранён");
   };
 
   return (
@@ -752,6 +860,9 @@ export function CrmDashboard() {
           {view === "analytics" && (
             <AnalyticsView period={period} setPeriod={setPeriod} users={users} openUser={openUser} />
           )}
+          {view === "structure" && (
+            <StructureView period={period} setPeriod={setPeriod} navigate={navigate} />
+          )}
           {view === "offers" && <OffersView setMetricModal={setMetricModal} />}
           {view === "partner" && <PartnerView setMetricModal={setMetricModal} />}
           {view === "access" && (
@@ -765,6 +876,9 @@ export function CrmDashboard() {
             <IntegrationsView connected={connected} setConnected={setConnected} showToast={showToast} />
           )}
           {view === "settings" && <SettingsView showToast={showToast} />}
+          {view === "reports" && (
+            <ReportsView reports={reports} onAdd={() => setReportModal(true)} />
+          )}
         </div>
       </main>
 
@@ -825,6 +939,14 @@ export function CrmDashboard() {
             openUser(id);
           }}
           showToast={showToast}
+        />
+      )}
+
+      {reportModal && (
+        <ReportModal
+          users={users}
+          onClose={() => setReportModal(false)}
+          onSave={saveReport}
         />
       )}
 
@@ -1396,6 +1518,265 @@ function AnalyticsView({
   );
 }
 
+function StructureView({
+  period,
+  setPeriod,
+  navigate,
+}: {
+  period: Period;
+  setPeriod: (period: Period) => void;
+  navigate: (view: View) => void;
+}) {
+  const trend = {
+    День: [22, 38, 31, 52, 47, 68, 74],
+    Неделя: [38, 51, 46, 67, 72, 64, 88],
+    Месяц: [31, 42, 55, 48, 69, 77, 91],
+  }[period];
+  const pipeline = [
+    {
+      index: "01",
+      title: "ИП / НПБ",
+      caption: "Первичный поток",
+      metric: "208 заявок",
+      detail: "Авито, Яндекс, Telegram",
+      owner: "Лидогенерация",
+    },
+    {
+      index: "02",
+      title: "РКО-офферы",
+      caption: "Обработка",
+      metric: "146 одобрено",
+      detail: "70,2% от входящего потока",
+      owner: "Тимлиды",
+    },
+    {
+      index: "03",
+      title: "Целевое действие",
+      caption: "Доставка и активация",
+      metric: "83 выполнено",
+      detail: "14 ожидают курьера",
+      owner: "Менеджеры",
+    },
+    {
+      index: "04",
+      title: "Карты и кредиты",
+      caption: "Выплаты",
+      metric: "2,14 млн ₽",
+      detail: "Чистый результат",
+      owner: "Финансы",
+    },
+  ];
+  const workItems = [
+    {
+      title: "Дебетовые карты · Север",
+      text: "ВТБ — ЦД выполняется, Газпромбанк — доставка 24 июля, ОТП — ждём выплату",
+      value: "18 / 24",
+      percent: 75,
+      state: "В работе",
+    },
+    {
+      title: "РКО · Альфа",
+      text: "12 заявок переданы банкам, 7 одобрены, по 3 клиентам нужен повторный контакт",
+      value: "7 / 12",
+      percent: 58,
+      state: "Есть риски",
+    },
+    {
+      title: "Premium Private · Вектор",
+      text: "Первичный отбор завершён, два клиента назначены на консультацию",
+      value: "6 / 8",
+      percent: 82,
+      state: "По плану",
+    },
+  ];
+
+  return (
+    <>
+      <div className="page-title compact-title">
+        <div>
+          <span className="eyebrow">Операционная карта</span>
+          <h1>Структура и динамика</h1>
+          <p>Весь путь лида — от входящего потока до целевого действия и выплаты.</p>
+        </div>
+        <PeriodControl period={period} setPeriod={setPeriod} />
+      </div>
+
+      <div className="structure-kpis">
+        <div><span>Входящий поток</span><strong>208</strong><small className="positive">+18,6%</small></div>
+        <div><span>В работе</span><strong>76</strong><small>36,5% потока</small></div>
+        <div><span>ЦД выполнено</span><strong>83</strong><small className="positive">+12 за неделю</small></div>
+        <div><span>Потенциал дохода</span><strong>3,48 млн ₽</strong><small>при текущей конверсии</small></div>
+      </div>
+
+      <div className="structure-top-grid">
+        <Panel
+          title="Динамика результата"
+          subtitle={`${period.toLowerCase()} · лиды, ЦД и выручка`}
+          className="structure-trend-panel"
+        >
+          <div className="trend-head">
+            <div><strong>+24,8%</strong><span>к прошлому периоду</span></div>
+            <div className="trend-legend"><span><i />Лиды</span><span><i />ЦД</span></div>
+          </div>
+          <div className="trend-chart" aria-label="Рост результата по периодам">
+            <div className="trend-grid" />
+            <div
+              className="trend-area"
+              style={{
+                clipPath: `polygon(0 ${100 - trend[0]}%, 16.6% ${100 - trend[1]}%, 33.2% ${100 - trend[2]}%, 49.8% ${100 - trend[3]}%, 66.4% ${100 - trend[4]}%, 83% ${100 - trend[5]}%, 100% ${100 - trend[6]}%, 100% 100%, 0 100%)`,
+              }}
+            />
+            {trend.map((value, index) => (
+              <span
+                className="trend-point"
+                key={`${period}-${index}`}
+                style={{ left: `${index * 16.66}%`, bottom: `${value}%` }}
+              />
+            ))}
+            <div className="trend-labels">
+              {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((label) => <span key={label}>{label}</span>)}
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Сводка процесса" subtitle="Где сейчас находится работа">
+          <div className="process-summary">
+            <div className="process-ring"><strong>70%</strong><span>прошли отбор</span></div>
+            <div>
+              <p><i className="is-yellow" /><span>Первичный поток</span><strong>208</strong></p>
+              <p><i className="is-orange" /><span>Одобрено</span><strong>146</strong></p>
+              <p><i className="is-white" /><span>Выполнено ЦД</span><strong>83</strong></p>
+              <p><i className="is-muted" /><span>Ожидают действия</span><strong>42</strong></p>
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel
+        title="Рабочая цепочка"
+        subtitle="Детализация по каждому этапу"
+        action={<button className="text-button" onClick={() => navigate("analytics")}>Открыть аналитику →</button>}
+        className="flow-panel"
+      >
+        <div className="structure-flow">
+          {pipeline.map((stage, index) => (
+            <article key={stage.title} className="flow-stage">
+              <div className="flow-stage-top"><span>{stage.index}</span><small>{stage.caption}</small></div>
+              <h3>{stage.title}</h3>
+              <strong>{stage.metric}</strong>
+              <p>{stage.detail}</p>
+              <footer><span>Ответственный</span><b>{stage.owner}</b></footer>
+              {index < pipeline.length - 1 && <i className="flow-arrow" aria-hidden="true">→</i>}
+            </article>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="structure-bottom-grid">
+        <Panel title="Активные направления" subtitle="Короткие рабочие блоки вместо разрозненных записей">
+          <div className="work-stack">
+            {workItems.map((item) => (
+              <article key={item.title}>
+                <div><span className={`report-state ${item.state === "Есть риски" ? "risk" : ""}`}>{item.state}</span><strong>{item.value}</strong></div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+                <div className="work-progress"><span style={{ width: `${item.percent}%` }} /></div>
+              </article>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Зоны ответственности" subtitle="Кто ведёт каждый контур">
+          <div className="responsibility-list">
+            <div><span>Lead generation</span><strong>Тимлид + лидогенераторы</strong><small>Источники, входящий поток, первичная квалификация</small></div>
+            <div><span>Premium Private</span><strong>Leader / Influencer</strong><small>Премиальные офферы, партнёры, развитие команды</small></div>
+            <div><span>Команда и медиа</span><strong>Тимлид + администратор</strong><small>Операционные задачи, обучение, текущие статусы</small></div>
+            <div><span>Контроль</span><strong>Админ-панель</strong><small>РКО, медиа, доступы, выплаты и отчёты</small></div>
+          </div>
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+function ReportsView({
+  reports,
+  onAdd,
+}: {
+  reports: TeamReport[];
+  onAdd: () => void;
+}) {
+  const completed = reports.reduce(
+    (sum, report) => sum + report.completedTasks.split(";").filter(Boolean).length,
+    0,
+  );
+  const average = Math.round(
+    reports.reduce((sum, report) => sum + report.completionPercent, 0) /
+      Math.max(1, reports.length),
+  );
+  const risks = reports.filter((report) => report.blockers.trim()).length;
+
+  return (
+    <>
+      <div className="page-title compact-title">
+        <div>
+          <span className="eyebrow">Контроль команд</span>
+          <h1>Отчёты тимлидов</h1>
+          <p>Выполненные задачи, текущее состояние дел, риски и следующий шаг.</p>
+        </div>
+        <button className="primary-button" onClick={onAdd}>＋ Добавить отчёт</button>
+      </div>
+
+      <div className="report-kpis">
+        <div><span>Отчётов</span><strong>{reports.length}</strong><small>в текущей выборке</small></div>
+        <div><span>Выполнено блоков</span><strong>{completed}</strong><small className="positive">за период</small></div>
+        <div><span>Средняя готовность</span><strong>{average}%</strong><small>по всем командам</small></div>
+        <div><span>Требуют внимания</span><strong>{risks}</strong><small className={risks ? "warning-copy" : "positive"}>{risks ? "есть блокеры" : "рисков нет"}</small></div>
+      </div>
+
+      <div className="reports-toolbar">
+        <div><button className="active">Все команды</button><button>Север</button><button>Альфа</button><button>Вектор</button></div>
+        <span>Сначала новые ↓</span>
+      </div>
+
+      <div className="reports-list">
+        {reports.map((report) => (
+          <article className="report-card" key={report.id}>
+            <header>
+              <Avatar initials={report.teamLead.split(" ").map((part) => part[0]).join("").slice(0, 2)} />
+              <div><h3>{report.teamLead}</h3><p>Команда {report.team} · {report.period}</p></div>
+              <span className={`report-state ${report.status === "Есть риски" ? "risk" : ""}`}>{report.status}</span>
+              <time>{new Date(report.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</time>
+            </header>
+            <div className="report-progress-row">
+              <div><span>Готовность периода</span><strong>{report.completionPercent}%</strong></div>
+              <div className="work-progress"><span style={{ width: `${report.completionPercent}%` }} /></div>
+            </div>
+            <div className="report-columns">
+              <section>
+                <span>Выполненные задачи</span>
+                <p>{report.completedTasks}</p>
+              </section>
+              <section>
+                <span>Текущее состояние дел</span>
+                <p>{report.currentState}</p>
+              </section>
+              <section className={report.blockers ? "has-risk" : ""}>
+                <span>Блокеры</span>
+                <p>{report.blockers || "Блокеров нет"}</p>
+              </section>
+              <section>
+                <span>Следующие шаги</span>
+                <p>{report.nextSteps || "Не указаны"}</p>
+              </section>
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function OffersView({ setMetricModal }: { setMetricModal: (type: string) => void }) {
   const categories = [
     { name: "РКО", count: 12, avg: 28600, color: "#bdff38" },
@@ -1752,6 +2133,105 @@ function UserDrawer({
           <div className="access-summary"><div><span>Роль</span><strong>{user.role}</strong></div><div><span>Рабочее время</span><strong>08:00–23:00</strong></div><div><span>Действует до</span><strong>Без ограничения</strong></div></div>
         </div>
       </aside>
+    </div>
+  );
+}
+
+function ReportModal({
+  users,
+  onClose,
+  onSave,
+}: {
+  users: User[];
+  onClose: () => void;
+  onSave: (report: Omit<TeamReport, "id" | "createdAt">) => Promise<void>;
+}) {
+  const teamLeads = users.filter((user) => user.role === "Тимлид");
+  const firstLead = teamLeads[0] ?? users[0];
+  const [teamLead, setTeamLead] = useState(firstLead?.name ?? "");
+  const [team, setTeam] = useState(firstLead?.team ?? "");
+  const [period, setPeriod] = useState("20–26 июля");
+  const [completedTasks, setCompletedTasks] = useState("");
+  const [currentState, setCurrentState] = useState("");
+  const [blockers, setBlockers] = useState("");
+  const [nextSteps, setNextSteps] = useState("");
+  const [completionPercent, setCompletionPercent] = useState(75);
+  const [status, setStatus] = useState("По плану");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  return (
+    <div className="modal-layer">
+      <button className="modal-scrim" onClick={onClose} aria-label="Закрыть окно" />
+      <form
+        className="modal report-modal"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setSaving(true);
+          setError("");
+          try {
+            await onSave({
+              teamLead,
+              team,
+              period,
+              completedTasks,
+              currentState,
+              blockers,
+              nextSteps,
+              completionPercent,
+              status,
+            });
+          } catch (submitError) {
+            setError(submitError instanceof Error ? submitError.message : "Не удалось сохранить отчёт");
+            setSaving(false);
+          }
+        }}
+      >
+        <div className="modal-head">
+          <div><h2>Новый отчёт тимлида</h2><p>Зафиксируйте результат и текущее состояние команды.</p></div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+        <div className="report-form">
+          <label>
+            <span>Тимлид</span>
+            <select
+              value={teamLead}
+              onChange={(event) => {
+                const next = users.find((user) => user.name === event.target.value);
+                setTeamLead(event.target.value);
+                if (next) setTeam(next.team);
+              }}
+            >
+              {(teamLeads.length ? teamLeads : users).map((user) => (
+                <option value={user.name} key={user.id}>{user.name}</option>
+              ))}
+            </select>
+          </label>
+          <label><span>Команда</span><input value={team} onChange={(event) => setTeam(event.target.value)} required /></label>
+          <label><span>Период</span><input value={period} onChange={(event) => setPeriod(event.target.value)} required /></label>
+          <label>
+            <span>Статус</span>
+            <select value={status} onChange={(event) => setStatus(event.target.value)}>
+              <option>По плану</option>
+              <option>Есть риски</option>
+              <option>Завершено</option>
+            </select>
+          </label>
+          <label className="full"><span>Выполненные задачи</span><textarea value={completedTasks} onChange={(event) => setCompletedTasks(event.target.value)} placeholder="Например: закрыли 9 ЦД; проверили доставки; перераспределили лиды" required /></label>
+          <label className="full"><span>Текущее состояние дел</span><textarea value={currentState} onChange={(event) => setCurrentState(event.target.value)} placeholder="Что происходит сейчас в команде и на каком этапе работа" required /></label>
+          <label className="full"><span>Блокеры и проблемы</span><textarea value={blockers} onChange={(event) => setBlockers(event.target.value)} placeholder="Можно оставить пустым, если блокеров нет" /></label>
+          <label className="full"><span>Следующие шаги</span><textarea value={nextSteps} onChange={(event) => setNextSteps(event.target.value)} placeholder="Что команда сделает дальше" /></label>
+          <label className="full report-range">
+            <span>Готовность периода <strong>{completionPercent}%</strong></span>
+            <input type="range" min="0" max="100" step="5" value={completionPercent} onChange={(event) => setCompletionPercent(Number(event.target.value))} />
+          </label>
+          {error && <p className="form-error full">{error}</p>}
+          <div className="report-form-actions full">
+            <button type="button" className="secondary-button" onClick={onClose}>Отмена</button>
+            <button type="submit" className="primary-button" disabled={saving}>{saving ? "Сохраняем…" : "Сохранить отчёт"}</button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }

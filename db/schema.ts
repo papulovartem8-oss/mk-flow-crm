@@ -121,3 +121,18 @@ export const integrations = sqliteTable("integrations", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const teamReports = sqliteTable("team_reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  teamLead: text("team_lead").notNull(),
+  team: text("team").notNull(),
+  period: text("period").notNull(),
+  completedTasks: text("completed_tasks").notNull(),
+  currentState: text("current_state").notNull(),
+  blockers: text("blockers").notNull().default(""),
+  nextSteps: text("next_steps").notNull().default(""),
+  completionPercent: integer("completion_percent").notNull().default(0),
+  status: text("status").notNull().default("В работе"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
