@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type View =
   | "overview"
@@ -553,6 +553,8 @@ export function CrmDashboard() {
   const [problemFilter, setProblemFilter] = useState("Все проблемы");
   const [toast, setToast] = useState<string | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
+  const [viewTransition, setViewTransition] = useState(false);
+  const transitionTimeout = useRef<number | null>(null);
   const [connected, setConnected] = useState<string[]>(["Telegram-бот"]);
 
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) ?? null;
@@ -594,18 +596,37 @@ export function CrmDashboard() {
   };
 
   const navigate = (next: View) => {
-    setView(next);
     setMobileNav(false);
     setSelectedLeadId(null);
     setSelectedUserId(null);
+    if (next === view) return;
+    if (transitionTimeout.current) window.clearTimeout(transitionTimeout.current);
+    setViewTransition(true);
+    transitionTimeout.current = window.setTimeout(() => {
+      setView(next);
+      setViewTransition(false);
+    }, 220);
   };
 
   return (
     <div className="app-shell">
+      <div className="intro-loader" aria-hidden="true">
+        <div className="intro-aura" />
+        <div className="intro-logo-wrap">
+          <img src="/mk-logo-transparent.png" alt="" />
+          <span className="intro-wand" />
+          <i className="intro-spark intro-spark-a" />
+          <i className="intro-spark intro-spark-b" />
+          <i className="intro-spark intro-spark-c" />
+        </div>
+        <strong>Платформа M&K</strong>
+        <small>Управление лидами</small>
+      </div>
+
       <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
         <button className="brand" onClick={() => navigate("overview")}>
           <span className="brand-mark">
-            <img src="/mk-logo.jpg" alt="Логотип M&K" />
+            <img src="/mk-logo-transparent.png" alt="Логотип M&K" />
           </span>
           <span>
             <strong>Платформа M&K</strong>
@@ -652,7 +673,7 @@ export function CrmDashboard() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Найти лид, пользователя, источник…"
-              onFocus={() => setView("leads")}
+              onFocus={() => navigate("leads")}
             />
             <kbd>Ctrl K</kbd>
           </div>
@@ -666,7 +687,7 @@ export function CrmDashboard() {
           </div>
         </header>
 
-        <div className="content">
+        <div className={`content view-stage ${viewTransition ? "view-leaving" : ""}`} key={view}>
           {view === "overview" && (
             <Overview
               period={period}

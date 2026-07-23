@@ -23,20 +23,20 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Платформа M&K",
     description: "Платформа управления лидами, офферами и командами.",
     icons: {
-      icon: "/mk-logo.jpg",
-      shortcut: "/mk-logo.jpg",
+      icon: "/mk-logo-transparent.png",
+      shortcut: "/mk-logo-transparent.png",
     },
     openGraph: {
       title: "Платформа M&K",
       description: "Лиды. Офферы. Команды. Результат.",
-      images: [{ url: `${origin}/mk-logo.jpg`, width: 1212, height: 1208 }],
+      images: [{ url: `${origin}/mk-logo-transparent.png`, width: 812, height: 610 }],
       type: "website",
     },
     twitter: {
       card: "summary",
       title: "Платформа M&K",
       description: "Лиды. Офферы. Команды. Результат.",
-      images: [`${origin}/mk-logo.jpg`],
+      images: [`${origin}/mk-logo-transparent.png`],
     },
   };
 }
