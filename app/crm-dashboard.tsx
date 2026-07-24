@@ -15,7 +15,21 @@ type View =
   | "access"
   | "integrations"
   | "settings"
-  | "reports";
+  | "reports"
+  | "mini-app"
+  | "info"
+  | "media"
+  | "rko-stats"
+  | "media-stats"
+  | "accounting";
+
+type UserRole = "influencer" | "leader" | "partner" | "admin" | "owner";
+
+type NavGroup = {
+  label: string;
+  roles: UserRole[];
+  items: { id: View; label: string; icon: string }[];
+};
 
 type LeadStatus = "Новый" | "В работе" | "Успешно" | "Отказ";
 type Period = "День" | "Неделя" | "Месяц";
@@ -85,20 +99,39 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const NAV: { id: View; label: string; icon: string }[] = [
-  { id: "overview", label: "Обзор", icon: "⌂" },
-  { id: "leads", label: "Лиды", icon: "◫" },
-  { id: "teams", label: "Команды", icon: "♟" },
-  { id: "users", label: "Пользователи", icon: "◎" },
-  { id: "problems", label: "Проблемы", icon: "!" },
-  { id: "analytics", label: "Аналитика", icon: "↗" },
-  { id: "structure", label: "Структура", icon: "⌁" },
-  { id: "offers", label: "Офферы", icon: "◆" },
-  { id: "partner", label: "Партнёрский кабинет", icon: "₽" },
-  { id: "access", label: "Доступы", icon: "⌘" },
-  { id: "integrations", label: "Интеграции", icon: "⇄" },
-  { id: "settings", label: "Настройки", icon: "⚙" },
-  { id: "reports", label: "Отчёты", icon: "▤" },
+const CURRENT_USER_ROLE: UserRole = "owner";
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Основное",
+    roles: ["influencer", "leader", "partner", "admin", "owner"],
+    items: [
+      { id: "overview", label: "Дашборд", icon: "⌂" },
+      { id: "offers", label: "Офферы", icon: "◆" },
+      { id: "leads", label: "Лидогенерация", icon: "◫" },
+      { id: "analytics", label: "Инсайды", icon: "↗" },
+      { id: "mini-app", label: "Mini App", icon: "◉" },
+      { id: "info", label: "Инфораздел", icon: "i" },
+    ],
+  },
+  {
+    label: "Premium Private",
+    roles: ["influencer", "leader", "partner", "admin", "owner"],
+    items: [
+      { id: "teams", label: "Команда", icon: "♟" },
+      { id: "media", label: "Медиа", icon: "▶" },
+      { id: "access", label: "Админка", icon: "⌘" },
+    ],
+  },
+  {
+    label: "Admin Panel",
+    roles: ["admin", "owner"],
+    items: [
+      { id: "rko-stats", label: "Статистика РКО", icon: "₽" },
+      { id: "media-stats", label: "Статистика медиа", icon: "▥" },
+      { id: "accounting", label: "Бухгалтерский учёт", icon: "▤" },
+    ],
+  },
 ];
 
 const INITIAL_LEADS: Lead[] = [
@@ -743,16 +776,22 @@ export function CrmDashboard() {
         </button>
 
         <nav className="nav-list" aria-label="Основная навигация">
-          {NAV.map((item) => (
-            <button
-              key={item.id}
-              className={view === item.id ? "active" : ""}
-              onClick={() => navigate(item.id)}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-              {item.id === "problems" && <b>4</b>}
-            </button>
+          {NAV_GROUPS.filter((group) => group.roles.includes(CURRENT_USER_ROLE)).map((group) => (
+            <section className="nav-group" key={group.label}>
+              <span className="nav-group-label">{group.label}</span>
+              <div className="nav-group-items">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    className={view === item.id ? "active" : ""}
+                    onClick={() => navigate(item.id)}
+                  >
+                    <span>{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </section>
           ))}
         </nav>
 
@@ -879,6 +918,12 @@ export function CrmDashboard() {
           {view === "reports" && (
             <ReportsView reports={reports} onAdd={() => setReportModal(true)} />
           )}
+          {view === "mini-app" && <ModuleView type="mini-app" />}
+          {view === "info" && <ModuleView type="info" />}
+          {view === "media" && <ModuleView type="media" />}
+          {view === "rko-stats" && <ModuleView type="rko-stats" />}
+          {view === "media-stats" && <ModuleView type="media-stats" />}
+          {view === "accounting" && <ModuleView type="accounting" />}
         </div>
       </main>
 
@@ -1251,7 +1296,7 @@ function TeamsView({ users, openUser }: { users: User[]; openUser: (id: number) 
       <div className="page-title compact-title">
         <div>
           <span className="eyebrow">Люди и результат</span>
-          <h1>Команды</h1>
+          <h1>Команда</h1>
           <p>Два рейтинга: по заработку и по количеству лидов.</p>
         </div>
         <button className="primary-button">＋ Создать команду</button>
@@ -1462,7 +1507,7 @@ function AnalyticsView({
       <div className="page-title compact-title">
         <div>
           <span className="eyebrow">Глубокая статистика</span>
-          <h1>Аналитика</h1>
+          <h1>Инсайды</h1>
           <p>Источники, конверсия, продукты, команды и динамика.</p>
         </div>
         <div className="title-actions"><PeriodControl period={period} setPeriod={setPeriod} /><button className="secondary-button">⇩ Отчёт</button></div>
@@ -1777,6 +1822,227 @@ function ReportsView({
   );
 }
 
+type ModuleViewType =
+  | "mini-app"
+  | "info"
+  | "media"
+  | "rko-stats"
+  | "media-stats"
+  | "accounting";
+
+const MODULE_CONTENT: Record<
+  ModuleViewType,
+  {
+    eyebrow: string;
+    title: string;
+    description: string;
+    status: string;
+    stats: { label: string; value: string; hint: string }[];
+    listTitle: string;
+    listSubtitle: string;
+    rows: { title: string; meta: string; value: string; state: string }[];
+    noteTitle: string;
+    notes: { title: string; text: string }[];
+  }
+> = {
+  "mini-app": {
+    eyebrow: "Мобильный продукт",
+    title: "Mini App",
+    description: "Управление клиентским Mini App, сценариями и ключевыми показателями.",
+    status: "Версия 2.4 · работает",
+    stats: [
+      { label: "Пользователи", value: "1 248", hint: "+14% за месяц" },
+      { label: "Запуски", value: "6 840", hint: "за 30 дней" },
+      { label: "Конверсия", value: "32,8%", hint: "+4,1 п.п." },
+      { label: "Доступность", value: "99,98%", hint: "без сбоев" },
+    ],
+    listTitle: "Сценарии Mini App",
+    listSubtitle: "Основные пользовательские маршруты",
+    rows: [
+      { title: "Подбор оффера", meta: "Каталог → заявка", value: "2 914", state: "Активен" },
+      { title: "Статус заявки", meta: "Проверка этапа лида", value: "1 806", state: "Активен" },
+      { title: "Связь с менеджером", meta: "Чат и обратный звонок", value: "742", state: "Активен" },
+    ],
+    noteTitle: "Последние обновления",
+    notes: [
+      { title: "Новая карточка оффера", text: "Добавлены условия, выплата и короткий путь до заявки." },
+      { title: "Уведомления", text: "Клиент получает сообщение при смене статуса заявки." },
+    ],
+  },
+  info: {
+    eyebrow: "База знаний",
+    title: "Инфораздел",
+    description: "Инструкции, регламенты и материалы для ежедневной работы команды.",
+    status: "24 материала",
+    stats: [
+      { label: "Инструкции", value: "12", hint: "актуальные версии" },
+      { label: "Регламенты", value: "7", hint: "для всех ролей" },
+      { label: "Обновлено", value: "5", hint: "за эту неделю" },
+      { label: "Прочитано", value: "84%", hint: "сотрудников" },
+    ],
+    listTitle: "Популярные материалы",
+    listSubtitle: "То, что чаще всего открывает команда",
+    rows: [
+      { title: "Как квалифицировать новый лид", meta: "Инструкция · 8 минут", value: "186", state: "Обновлено" },
+      { title: "Регламент работы с РКО", meta: "Регламент · 12 минут", value: "143", state: "Актуально" },
+      { title: "Целевые действия по банкам", meta: "Справочник · 6 минут", value: "119", state: "Актуально" },
+    ],
+    noteTitle: "Для быстрого старта",
+    notes: [
+      { title: "Новому сотруднику", text: "Пройдите вводный маршрут и проверьте доступы к рабочим каналам." },
+      { title: "Перед запуском оффера", text: "Сверьте ставку, ЦД и ограничения в последней версии регламента." },
+    ],
+  },
+  media: {
+    eyebrow: "Premium Private",
+    title: "Медиа",
+    description: "Контент, публикации и медиаактивности премиального направления.",
+    status: "8 кампаний в работе",
+    stats: [
+      { label: "Публикации", value: "42", hint: "за месяц" },
+      { label: "Охват", value: "1,84 млн", hint: "+22%" },
+      { label: "Переходы", value: "31 260", hint: "CTR 1,7%" },
+      { label: "Лиды", value: "1 096", hint: "из медиа" },
+    ],
+    listTitle: "Активные кампании",
+    listSubtitle: "Текущие размещения и результат",
+    rows: [
+      { title: "РКО для предпринимателей", meta: "Telegram · 12 размещений", value: "486 лидов", state: "В эфире" },
+      { title: "Дебетовая карта Premium", meta: "Influencer · 8 размещений", value: "341 лид", state: "В эфире" },
+      { title: "Регистрация бизнеса", meta: "Shorts · 14 роликов", value: "269 лидов", state: "Оптимизация" },
+    ],
+    noteTitle: "Фокус команды",
+    notes: [
+      { title: "Усилить РКО", text: "Лучший результат дают короткие кейсы с конкретной выгодой для ИП." },
+      { title: "Проверить креативы", text: "Три публикации вышли ниже целевого CTR и требуют новой подачи." },
+    ],
+  },
+  "rko-stats": {
+    eyebrow: "Admin Panel",
+    title: "Статистика РКО",
+    description: "Полная воронка РКО: заявки, открытия, целевые действия и выплаты.",
+    status: "Данные обновлены 5 минут назад",
+    stats: [
+      { label: "Заявки", value: "418", hint: "+18,4%" },
+      { label: "Открыто счетов", value: "164", hint: "39,2% от заявок" },
+      { label: "Выполнено ЦД", value: "112", hint: "68,3% от открытий" },
+      { label: "Начислено", value: "3,86 млн ₽", hint: "+420 тыс. ₽" },
+    ],
+    listTitle: "Банки и результат",
+    listSubtitle: "Сводка по активным РКО-офферам",
+    rows: [
+      { title: "Т-Банк", meta: "126 заявок · 54 открытия", value: "1 642 000 ₽", state: "43%" },
+      { title: "Точка", meta: "104 заявки · 47 открытий", value: "1 118 000 ₽", state: "45%" },
+      { title: "Альфа-Банк", meta: "92 заявки · 36 открытий", value: "714 000 ₽", state: "39%" },
+    ],
+    noteTitle: "Контрольные точки",
+    notes: [
+      { title: "12 заявок без статуса", text: "Не получено обновление банка более 24 часов." },
+      { title: "Рост конверсии", text: "Точка прибавила 6 п.п. после обновления первичного скрипта." },
+    ],
+  },
+  "media-stats": {
+    eyebrow: "Admin Panel",
+    title: "Статистика медиа",
+    description: "Экономика медиа: охваты, переходы, лиды и стоимость результата.",
+    status: "Все каналы подключены",
+    stats: [
+      { label: "Охват", value: "4,7 млн", hint: "+31%" },
+      { label: "Переходы", value: "82 410", hint: "CTR 1,75%" },
+      { label: "Лиды", value: "2 346", hint: "CR 2,85%" },
+      { label: "Средний CPL", value: "684 ₽", hint: "−9,4%" },
+    ],
+    listTitle: "Каналы привлечения",
+    listSubtitle: "Результат и стоимость лида",
+    rows: [
+      { title: "Telegram", meta: "1,8 млн охвата · 1 104 лида", value: "612 ₽ CPL", state: "Лучший" },
+      { title: "Influencer", meta: "1,3 млн охвата · 742 лида", value: "738 ₽ CPL", state: "Стабильно" },
+      { title: "Shorts / Reels", meta: "980 тыс. охвата · 388 лидов", value: "804 ₽ CPL", state: "Рост" },
+    ],
+    noteTitle: "Рекомендации",
+    notes: [
+      { title: "Перераспределить бюджет", text: "Telegram сохраняет лучший CPL при достаточном объёме трафика." },
+      { title: "Масштабировать видео", text: "Короткие кейсы растут третью неделю подряд и готовы к расширению." },
+    ],
+  },
+  accounting: {
+    eyebrow: "Admin Panel",
+    title: "Бухгалтерский учёт",
+    description: "Начисления, выплаты партнёрам, расходы и закрывающие документы.",
+    status: "Июль 2026 · открыт",
+    stats: [
+      { label: "Начислено", value: "8,42 млн ₽", hint: "за июль" },
+      { label: "Выплачено", value: "6,18 млн ₽", hint: "73,4%" },
+      { label: "К выплате", value: "2,24 млн ₽", hint: "46 операций" },
+      { label: "Расходы", value: "1,31 млн ₽", hint: "15,6% оборота" },
+    ],
+    listTitle: "Ближайшие операции",
+    listSubtitle: "Очередь выплат и документов",
+    rows: [
+      { title: "Выплаты партнёрам", meta: "24 получателя · реестр №0724", value: "1 286 400 ₽", state: "К оплате" },
+      { title: "Медиа-размещения", meta: "11 актов · июль", value: "642 000 ₽", state: "Проверка" },
+      { title: "Операционные расходы", meta: "18 документов", value: "308 700 ₽", state: "Согласовано" },
+    ],
+    noteTitle: "Требует внимания",
+    notes: [
+      { title: "4 документа без подписи", text: "Закрывающие документы ожидают подтверждения контрагентов." },
+      { title: "Сверка завершена на 92%", text: "Осталось проверить три банковские операции за 23 июля." },
+    ],
+  },
+};
+
+function ModuleView({ type }: { type: ModuleViewType }) {
+  const content = MODULE_CONTENT[type];
+
+  return (
+    <>
+      <div className="page-title compact-title module-title">
+        <div>
+          <span className="eyebrow">{content.eyebrow}</span>
+          <h1>{content.title}</h1>
+          <p>{content.description}</p>
+        </div>
+        <span className="module-status"><i />{content.status}</span>
+      </div>
+
+      <div className="module-kpis">
+        {content.stats.map((stat) => (
+          <article key={stat.label}>
+            <span>{stat.label}</span>
+            <strong>{stat.value}</strong>
+            <small>{stat.hint}</small>
+          </article>
+        ))}
+      </div>
+
+      <div className="module-layout">
+        <Panel title={content.listTitle} subtitle={content.listSubtitle} className="module-list-panel">
+          <div className="module-list">
+            {content.rows.map((row, index) => (
+              <article key={row.title}>
+                <span className="module-index">{String(index + 1).padStart(2, "0")}</span>
+                <div><strong>{row.title}</strong><small>{row.meta}</small></div>
+                <div className="module-value"><strong>{row.value}</strong><small>{row.state}</small></div>
+              </article>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title={content.noteTitle} subtitle="Актуально на текущий период" className="module-notes-panel">
+          <div className="module-notes">
+            {content.notes.map((note) => (
+              <article key={note.title}>
+                <i />
+                <div><strong>{note.title}</strong><p>{note.text}</p></div>
+              </article>
+            ))}
+          </div>
+        </Panel>
+      </div>
+    </>
+  );
+}
+
 function OffersView({ setMetricModal }: { setMetricModal: (type: string) => void }) {
   const categories = [
     { name: "РКО", count: 12, avg: 28600, color: "#bdff38" },
@@ -1871,7 +2137,7 @@ function AccessView({
   return (
     <>
       <div className="page-title compact-title">
-        <div><span className="eyebrow">Безопасность</span><h1>Доступы и сессии</h1><p>Ключи регистрации, время использования и журнал входов.</p></div>
+        <div><span className="eyebrow">Premium Private</span><h1>Админка</h1><p>Ключи регистрации, доступы участников и журнал входов.</p></div>
         <button className="primary-button" onClick={onNewKey}>＋ Создать ключ</button>
       </div>
       <div className="two-columns">
