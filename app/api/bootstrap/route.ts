@@ -8,9 +8,12 @@ import {
   teams,
   users,
 } from "../../../db/schema";
+import { isAccessResponse, requireAccess } from "../auth/access-session";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const access = await requireAccess(request);
+    if (isAccessResponse(access)) return access;
     const db = getDb();
     const [teamRows, userRows, leadRows, offerRows, leadOfferRows, sessionRows] =
       await Promise.all([
@@ -30,6 +33,7 @@ export async function GET() {
       leadOffers: leadOfferRows,
       sessions: sessionRows,
       generatedAt: new Date().toISOString(),
+      currentAccess: access,
     });
   } catch (error) {
     const message =

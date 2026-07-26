@@ -1,9 +1,12 @@
 import { desc } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { teamReports } from "../../../db/schema";
+import { isAccessResponse, requireAccess } from "../auth/access-session";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const access = await requireAccess(request);
+    if (isAccessResponse(access)) return access;
     const db = getDb();
     const reports = await db
       .select()
@@ -21,6 +24,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const access = await requireAccess(request);
+    if (isAccessResponse(access)) return access;
     const input = (await request.json()) as {
       teamLead?: string;
       team?: string;

@@ -111,6 +111,15 @@ export const accessKeys = sqliteTable("access_keys", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const accessSessions = sqliteTable("access_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tokenHash: text("token_hash").notNull().unique(),
+  role: text("role").notNull(),
+  label: text("label").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const integrations = sqliteTable("integrations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   provider: text("provider").notNull().unique(),

@@ -1,9 +1,12 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { leads } from "../../../db/schema";
+import { isAccessResponse, requireAccess } from "../auth/access-session";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const access = await requireAccess(request);
+    if (isAccessResponse(access)) return access;
     const db = getDb();
     const rows = await db.select().from(leads).orderBy(desc(leads.createdAt)).limit(250);
     return Response.json({ leads: rows });
@@ -15,6 +18,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const access = await requireAccess(request);
+    if (isAccessResponse(access)) return access;
     const input = (await request.json()) as {
       clientName?: string;
       phone?: string;
@@ -59,6 +64,8 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const access = await requireAccess(request);
+    if (isAccessResponse(access)) return access;
     const input = (await request.json()) as {
       id?: number;
       source?: string;

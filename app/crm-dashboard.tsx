@@ -25,6 +25,11 @@ type View =
 
 type UserRole = "influencer" | "leader" | "partner" | "admin" | "owner";
 
+type AuthState =
+  | { status: "checking" }
+  | { status: "anonymous" }
+  | { status: "authenticated"; role: UserRole; label: string };
+
 type NavGroup = {
   label: string;
   roles: UserRole[];
@@ -162,8 +167,6 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const CURRENT_USER_ROLE: UserRole = "owner";
-
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Основное",
@@ -183,13 +186,13 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "teams", label: "Команда", icon: "♟" },
       { id: "media", label: "Медиа", icon: "▶" },
-      { id: "access", label: "Админка", icon: "⌘" },
     ],
   },
   {
     label: "Admin Panel",
     roles: ["admin", "owner"],
     items: [
+      { id: "access", label: "Админка", icon: "⌘" },
       { id: "rko-stats", label: "Статистика РКО", icon: "₽" },
       { id: "media-stats", label: "Статистика медиа", icon: "▥" },
       { id: "accounting", label: "Бухгалтерский учёт", icon: "▤" },
@@ -925,7 +928,66 @@ function PeriodControl({
   );
 }
 
+function AccessLogin({
+  onSuccess,
+}: {
+  onSuccess: (role: UserRole, label: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const payload = (await response.json()) as { error?: string; role?: string; label?: string };
+      if (!response.ok || !payload.role) throw new Error(payload.error ?? "Код доступа не принят");
+      const allowed: UserRole[] = ["influencer", "leader", "partner", "admin", "owner"];
+      const role = allowed.includes(payload.role as UserRole) ? (payload.role as UserRole) : "partner";
+      onSuccess(role, payload.label ?? "Пользователь");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Не удалось выполнить вход");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="access-login-shell">
+      <div className="access-login-glow" />
+      <section className="access-login-card">
+        <div className="access-login-brand">
+          <span><img src="/mk-logo-transparent.png" alt="Логотип M&K" /></span>
+          <div><strong>Платформа M&K</strong><small>Управление лидами</small></div>
+        </div>
+        <div className="access-login-tabs" aria-label="Способы входа">
+          <span>Вход</span><span className="active">Код доступа</span><span>Регистрация</span>
+        </div>
+        <div className="access-login-copy">
+          <span className="eyebrow">Защищённый доступ</span>
+          <h1>Добро пожаловать</h1>
+          <p>Введите код, который выдал администратор. Система автоматически откроет доступные для вашей роли разделы.</p>
+        </div>
+        <form onSubmit={submit}>
+          <label><span>Код доступа</span><input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="Введите код" autoComplete="one-time-code" autoFocus /></label>
+          {error && <div className="access-login-error">{error}</div>}
+          <button className="primary-button" disabled={submitting || !code.trim()}>{submitting ? "Проверяем…" : "Продолжить →"}</button>
+        </form>
+        <small className="access-login-note">Права администратора и участника разделены автоматически.</small>
+      </section>
+    </main>
+  );
+}
+
 export function CrmDashboard() {
+  const [auth, setAuth] = useState<AuthState>({ status: "checking" });
   const [view, setView] = useState<View>("overview");
   const [period, setPeriod] = useState<Period>("Месяц");
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
@@ -947,6 +1009,26 @@ export function CrmDashboard() {
   const [connected, setConnected] = useState<string[]>(["Telegram-бот"]);
 
   useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/session")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("anonymous");
+        return (await response.json()) as { role?: string; label?: string };
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        const allowed: UserRole[] = ["influencer", "leader", "partner", "admin", "owner"];
+        const role = allowed.includes(payload.role as UserRole) ? (payload.role as UserRole) : "partner";
+        setAuth({ status: "authenticated", role, label: payload.label ?? "Пользователь" });
+      })
+      .catch(() => {
+        if (!cancelled) setAuth({ status: "anonymous" });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (auth.status !== "authenticated") return;
     let cancelled = false;
 
     fetch("/api/bootstrap")
@@ -1092,7 +1174,7 @@ export function CrmDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [auth.status]);
 
   const calculatedUsers = useMemo(
     () => buildDashboardStats(leads, users, sessions, "Месяц").usersWithStats,
@@ -1221,6 +1303,22 @@ export function CrmDashboard() {
     showToast("Изменения по лиду сохранены");
   };
 
+  if (auth.status === "checking") {
+    return <main className="access-login-shell"><div className="access-login-loading"><img src="/mk-logo-transparent.png" alt="" /><span>Проверяем доступ…</span></div></main>;
+  }
+
+  if (auth.status === "anonymous") {
+    return <AccessLogin onSuccess={(role, label) => setAuth({ status: "authenticated", role, label })} />;
+  }
+
+  const currentUserRole = auth.role;
+
+  const logout = async () => {
+    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => undefined);
+    setAuth({ status: "anonymous" });
+    setView("overview");
+  };
+
   return (
     <div className="app-shell">
       <div className="intro-loader" aria-hidden="true">
@@ -1248,7 +1346,7 @@ export function CrmDashboard() {
         </button>
 
         <nav className="nav-list" aria-label="Основная навигация">
-          {NAV_GROUPS.filter((group) => group.roles.includes(CURRENT_USER_ROLE)).map((group) => (
+          {NAV_GROUPS.filter((group) => group.roles.includes(currentUserRole)).map((group) => (
             <section className="nav-group" key={group.label}>
               <span className="nav-group-label">{group.label}</span>
               <div className="nav-group-items">
@@ -1270,11 +1368,11 @@ export function CrmDashboard() {
         <div className="sidebar-foot">
           <div className="online-dot" />
           <div>
-            <strong>Супер Администратор</strong>
-            <small>admin@m8.team</small>
+            <strong>{auth.label}</strong>
+            <small>{currentUserRole === "admin" || currentUserRole === "owner" ? "Полный доступ" : "Обычный доступ"}</small>
           </div>
-          <button aria-label="Открыть профиль" onClick={() => navigate("settings")}>
-            ›
+          <button aria-label="Выйти" title="Выйти" onClick={logout}>
+            ↪
           </button>
         </div>
       </aside>
@@ -2676,10 +2774,10 @@ function AccessView({
         <Panel title="Ключи доступа" subtitle="Для регистрации новых участников">
           <div className="access-keys">
             {[
-              ["MK-TEAM-2026", "Менеджер", "12 / 25", "31.08.2026"],
-              ["LEAD-SILVER", "Лидогенератор", "4 / 20", "15.08.2026"],
-              ["ADMIN-ONE", "Администратор", "1 / 2", "01.09.2026"],
-            ].map((key) => <div key={key[0]}><code>{key[0]}</code><span><strong>{key[1]}</strong><small>Использовано {key[2]} · до {key[3]}</small></span><button>Копировать</button></div>)}
+              ["USER-••••••••", "Участник", "Активен", "без ограничения"],
+              ["LEAD-••••••••", "Лидогенератор", "Активен", "без ограничения"],
+              ["ADMIN-••••••••", "Администратор", "Активен", "без ограничения"],
+            ].map((key) => <div key={key[0]}><code>{key[0]}</code><span><strong>{key[1]}</strong><small>{key[2]} · {key[3]}</small></span><button onClick={onNewKey}>Сменить</button></div>)}
           </div>
         </Panel>
         <Panel title="Правила использования" subtitle="Ограничения по времени">
