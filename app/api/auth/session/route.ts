@@ -39,7 +39,11 @@ export async function POST(request: Request) {
     const rolesByCode = new Map<string, string>([
       [runtime.MK_ADMIN_ACCESS_CODE ?? "", "admin"],
       [runtime.MK_USER_ACCESS_CODE ?? "", "partner"],
-      [runtime.MK_LEAD_ACCESS_CODE ?? "", "influencer"],
+      [runtime.MK_LEAD_ACCESS_CODE ?? "", "leader"],
+      [runtime.MK_LEADER_ACCESS_CODE ?? "", "leader"],
+      [runtime.MK_TEAM_ACCESS_CODE ?? "", "partner"],
+      [runtime.MK_AGENT_ACCESS_CODE ?? "", "partner"],
+      [runtime.MK_FQ_ACCESS_CODE ?? "", "partner"],
     ]);
     const role = rolesByCode.get(code);
     if (!role || !code) {
