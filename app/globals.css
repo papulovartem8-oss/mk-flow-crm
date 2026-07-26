@@ -25,9 +25,7 @@
   overflow: hidden;
   padding: 24px;
   color: #f8f7f2;
-  background:
-    radial-gradient(circle at 50% 8%, rgba(255, 196, 0, .14), transparent 35%),
-    #0d0e10;
+  background: #0d0f0e;
 }
 
 .access-login-glow {
@@ -38,82 +36,54 @@
   background: rgba(255, 196, 0, .08);
   filter: blur(90px);
   animation: accessGlow 4s ease-in-out infinite alternate;
+  display: none;
 }
 
 .access-login-card {
-  width: min(100%, 460px);
+  width: min(100%, 540px);
   position: relative;
   z-index: 1;
-  padding: 28px;
-  border: 1px solid rgba(255, 196, 0, .24);
-  border-radius: 26px;
-  background: rgba(25, 26, 29, .94);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, .5);
+  padding: 56px 42px 42px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 28px;
+  background: #171a18;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .4);
   backdrop-filter: blur(18px);
 }
 
-.access-login-brand {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  margin-bottom: 26px;
-}
+.access-login-mark { display: grid; place-items: center; margin-bottom: 25px; }
+.access-login-mark img { width: 92px; height: 92px; object-fit: contain; }
 
-.access-login-brand > span {
-  width: 50px;
-  height: 50px;
-  display: grid;
-  place-items: center;
-  border-radius: 15px;
-  background: #fff;
-}
+.access-login-copy { text-align: center; }
+.access-login-copy h1 { margin: 0 0 25px; font-size: clamp(27px, 5vw, 34px); font-weight: 500; letter-spacing: -.04em; }
+.access-login-copy p { margin: 0 0 29px; color: #a4a7a3; line-height: 1.5; font-size: 15px; }
 
-.access-login-brand img { width: 40px; height: 40px; object-fit: contain; }
-.access-login-brand div { display: grid; gap: 3px; }
-.access-login-brand strong { font-size: 17px; }
-.access-login-brand small { color: #92949b; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-
-.access-login-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: 26px;
-  border-radius: 12px;
-  background: #111214;
-  color: #777a82;
-  font-size: 12px;
-  text-align: center;
-}
-
-.access-login-tabs span { padding: 9px 5px; border-radius: 9px; }
-.access-login-tabs .active { color: #141414; background: #ffc400; font-weight: 800; }
-.access-login-copy h1 { margin: 7px 0 9px; font-size: clamp(30px, 7vw, 42px); letter-spacing: -.04em; }
-.access-login-copy p { margin: 0 0 24px; color: #a9abb2; line-height: 1.6; font-size: 14px; }
-
-.access-login-card form { display: grid; gap: 13px; }
-.access-login-card label { display: grid; gap: 8px; color: #b8bac0; font-size: 12px; }
+.access-login-card form { display: grid; gap: 18px; }
+.access-login-card label { display: grid; gap: 9px; color: #929691; font-size: 13px; text-transform: uppercase; letter-spacing: .03em; }
 .access-login-card input {
   width: 100%;
-  min-height: 54px;
-  border: 1px solid #34363b;
-  border-radius: 13px;
+  min-height: 62px;
+  border: 1px solid #3a3e3a;
+  border-radius: 17px;
   padding: 0 16px;
   outline: none;
-  background: #111214;
+  background: #202320;
   color: #fff;
   font: inherit;
-  font-size: 16px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  font-size: 18px;
+  letter-spacing: 0;
+  text-transform: none;
   transition: border-color .2s, box-shadow .2s;
 }
 
-.access-login-card input:focus { border-color: #ffc400; box-shadow: 0 0 0 4px rgba(255, 196, 0, .1); }
-.access-login-card .primary-button { width: 100%; min-height: 52px; margin-top: 3px; }
+.access-login-card input:focus { border-color: #b5ce3d; box-shadow: 0 0 0 4px rgba(181, 206, 61, .12); }
+.access-login-card .primary-button { width: 100%; min-height: 66px; margin-top: 2px; border-radius: 17px; background: #ffcb05; color: #171a18; font-size: 20px; font-weight: 700; }
 .access-login-card .primary-button:disabled { opacity: .45; cursor: not-allowed; }
 .access-login-error { padding: 10px 12px; border-radius: 10px; color: #ff9a9a; background: rgba(255, 76, 96, .1); font-size: 12px; }
-.access-login-note { display: block; margin-top: 18px; color: #73767d; text-align: center; }
+.access-team-preview { display: flex; align-items: center; gap: 10px; min-height: 62px; padding: 0 18px; border: 1px solid rgba(181, 206, 61, .5); border-radius: 17px; background: rgba(181, 206, 61, .08); color: #969b91; font-size: 13px; }
+.access-team-preview span { font-size: 11px; }
+.access-team-preview strong { color: #ecf0e7; font-size: 16px; }
+.access-team-preview b { margin-left: auto; color: #e2c93e; font-weight: 500; }
 .access-login-loading { display: grid; justify-items: center; gap: 16px; color: #a7a9ae; }
 .access-login-loading img { width: 76px; height: 76px; object-fit: contain; animation: accessLogoPulse 1.3s ease-in-out infinite; }
 
@@ -122,7 +92,7 @@
 
 @media (max-width: 560px) {
   .access-login-shell { padding: 14px; align-items: center; }
-  .access-login-card { padding: 22px 18px; border-radius: 21px; }
+  .access-login-card { padding: 55px 38px 40px; border-radius: 27px; }
   .access-login-copy p { font-size: 13px; }
 }
 

@@ -933,6 +933,7 @@ function AccessLogin({
 }: {
   onSuccess: (role: UserRole, label: string) => void;
 }) {
+  const [agentName, setAgentName] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -945,7 +946,7 @@ function AccessLogin({
       const response = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, agentName }),
       });
       const payload = (await response.json()) as { error?: string; role?: string; label?: string };
       if (!response.ok || !payload.role) throw new Error(payload.error ?? "Код доступа не принят");
@@ -963,24 +964,18 @@ function AccessLogin({
     <main className="access-login-shell">
       <div className="access-login-glow" />
       <section className="access-login-card">
-        <div className="access-login-brand">
-          <span><img src="/mk-logo-transparent.png" alt="Логотип M&K" /></span>
-          <div><strong>Платформа M&K</strong><small>Управление лидами</small></div>
-        </div>
-        <div className="access-login-tabs" aria-label="Способы входа">
-          <span>Вход</span><span className="active">Код доступа</span><span>Регистрация</span>
-        </div>
+        <div className="access-login-mark"><img src="/mk-logo-transparent.png" alt="Логотип M&K" /></div>
         <div className="access-login-copy">
-          <span className="eyebrow">Защищённый доступ</span>
-          <h1>Добро пожаловать</h1>
-          <p>Введите код, который выдал администратор. Система автоматически откроет доступные для вашей роли разделы.</p>
+          <h1>Платформа M&K</h1>
+          <p>Вход по коду доступа. Регистрация закрыта.</p>
         </div>
         <form onSubmit={submit}>
-          <label><span>Код доступа</span><input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="Введите код" autoComplete="one-time-code" autoFocus /></label>
+          <label><span>Имя агента</span><input value={agentName} onChange={(event) => setAgentName(event.target.value)} placeholder="Дмитрий" autoComplete="name" autoFocus /></label>
+          <label><span>Код доступа</span><input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="Введите код" autoComplete="one-time-code" /></label>
+          <div className="access-team-preview"><span>КОМАНДА</span><strong>Команда «Excellent»</strong><b>{code.toLowerCase().includes("admin") ? "Admin" : code.toLowerCase().includes("lead") ? "Leader" : "User"}</b></div>
           {error && <div className="access-login-error">{error}</div>}
-          <button className="primary-button" disabled={submitting || !code.trim()}>{submitting ? "Проверяем…" : "Продолжить →"}</button>
+          <button className="primary-button" disabled={submitting || !code.trim() || !agentName.trim()}>{submitting ? "Проверяем…" : "Войти"}</button>
         </form>
-        <small className="access-login-note">Права администратора и участника разделены автоматически.</small>
       </section>
     </main>
   );
