@@ -57,10 +57,12 @@ type Lead = {
   manager: string;
   team: string;
   created: string;
+  createdAt?: string;
   description: string;
   issue?: "Нет контакта" | "Нет суммы" | "Низкое качество" | "Застрял";
   ai: number;
   offers: OfferItem[];
+  persisted?: boolean;
 };
 
 type User = {
@@ -76,6 +78,67 @@ type User = {
   lastLogin: string;
   session: string;
   topOffer: string;
+  lastLoginAt?: string;
+  sessionSeconds?: number;
+  isOnline?: boolean;
+};
+
+type SessionRecord = {
+  id: number;
+  userId: number;
+  signedInAt: string;
+  signedOutAt: string | null;
+  durationSeconds: number;
+  ipAddress: string | null;
+  userAgent: string | null;
+};
+
+type BootstrapPayload = {
+  teams?: Array<{ id: number; name: string }>;
+  users?: Array<{
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    teamId: number | null;
+    status: string;
+  }>;
+  leads?: Array<{
+    id: number;
+    clientName: string;
+    phone: string | null;
+    telegram: string | null;
+    whatsapp: string | null;
+    description: string;
+    source: string;
+    product: string;
+    status: string;
+    amount: number;
+    managerId: number | null;
+    teamId: number | null;
+    issueType: string | null;
+    aiScore: number | null;
+    createdAt: string;
+  }>;
+  offers?: Array<{
+    id: number;
+    category: string;
+    partnerName: string;
+    title: string;
+    payout: number;
+    targetActionCost: number;
+  }>;
+  leadOffers?: Array<{
+    id: number;
+    leadId: number;
+    offerId: number | null;
+    stage: string;
+    payout: number;
+    targetActionCost: number;
+    deliveryAt: string | null;
+    deliveryNote: string | null;
+  }>;
+  sessions?: SessionRecord[];
 };
 
 type TeamReport = {
@@ -495,26 +558,229 @@ const INITIAL_REPORTS: TeamReport[] = [
   },
 ];
 
-const sourceStats = [
-  { name: "Авито", leads: 58, revenue: 842600, conversion: 32.4, color: "#bdff38" },
-  { name: "Яндекс", leads: 42, revenue: 611900, conversion: 27.1, color: "#a78bfa" },
-  { name: "Telegram", leads: 36, revenue: 524800, conversion: 30.6, color: "#46d9ff" },
-  { name: "Сайт", leads: 29, revenue: 387400, conversion: 24.8, color: "#ffb35c" },
-  { name: "Реферал", leads: 24, revenue: 318200, conversion: 35.9, color: "#ff6e91" },
-  { name: "Холодный звонок", leads: 19, revenue: 196700, conversion: 16.2, color: "#7f8da6" },
-];
-
-const productStats = [
-  { name: "Дебет", value: 31, color: "#bdff38" },
-  { name: "РКО", value: 22, color: "#46d9ff" },
-  { name: "Кредит", value: 18, color: "#a78bfa" },
-  { name: "МФО", value: 12, color: "#ffb35c" },
-  { name: "Регбиз", value: 9, color: "#ff6e91" },
-  { name: "HR и другие", value: 8, color: "#62708c" },
-];
-
 const daily = [38, 52, 44, 61, 78, 70, 86, 72, 94, 88, 102, 118, 109, 126];
 const hourly = [20, 38, 54, 47, 72, 83, 64, 92, 78, 58, 34, 18];
+
+const SOURCE_COLORS = ["#f7c900", "#f59e0b", "#46d9ff", "#a78bfa", "#ff6e91", "#7f8da6"];
+const PRODUCT_COLORS = ["#f7c900", "#46d9ff", "#a78bfa", "#ffb35c", "#ff6e91", "#62708c"];
+
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+const formatPercent = (value: number) =>
+  `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(value)}%`;
+
+const formatDuration = (seconds: number) => {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  if (!hours) return `${minutes} мин`;
+  return `${hours} ч ${minutes} мин`;
+};
+
+const durationToSeconds = (value: string) => {
+  const hours = Number(value.match(/(\d+)\s*ч/)?.[1] ?? 0);
+  const minutes = Number(value.match(/(\d+)\s*мин/)?.[1] ?? 0);
+  return hours * 3600 + minutes * 60;
+};
+
+const startOfDay = (value: Date) => {
+  const result = new Date(value);
+  result.setHours(0, 0, 0, 0);
+  return result;
+};
+
+const periodDays = (period: Period) => (period === "День" ? 1 : period === "Неделя" ? 7 : 30);
+
+const parsedLeadDate = (lead: Lead) => {
+  if (!lead.createdAt) return null;
+  const date = new Date(lead.createdAt);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const buildSourceStats = (leads: Lead[]) => {
+  const grouped = new Map<string, { leads: number; revenue: number; successful: number }>();
+  leads.forEach((lead) => {
+    const current = grouped.get(lead.source) ?? { leads: 0, revenue: 0, successful: 0 };
+    current.leads += 1;
+    current.revenue += lead.amount;
+    current.successful += lead.status === "Успешно" ? 1 : 0;
+    grouped.set(lead.source, current);
+  });
+
+  return [...grouped.entries()]
+    .map(([name, value], index) => ({
+      name,
+      leads: value.leads,
+      revenue: value.revenue,
+      conversion: value.leads ? (value.successful / value.leads) * 100 : 0,
+      color: SOURCE_COLORS[index % SOURCE_COLORS.length],
+    }))
+    .sort((a, b) => b.leads - a.leads);
+};
+
+function buildDashboardStats(
+  leads: Lead[],
+  users: User[],
+  sessions: SessionRecord[],
+  period: Period,
+) {
+  const now = new Date();
+  const today = startOfDay(now);
+  const days = periodDays(period);
+  const currentStart = new Date(today);
+  currentStart.setDate(currentStart.getDate() - (days - 1));
+  const previousStart = new Date(currentStart);
+  previousStart.setDate(previousStart.getDate() - days);
+  const datedLeads = leads.filter((lead) => parsedLeadDate(lead));
+  const scopedLeads = datedLeads.length
+    ? leads.filter((lead) => {
+        const date = parsedLeadDate(lead);
+        return date && date >= currentStart && date <= now;
+      })
+    : leads;
+  const previousLeads = datedLeads.length
+    ? leads.filter((lead) => {
+        const date = parsedLeadDate(lead);
+        return date && date >= previousStart && date < currentStart;
+      })
+    : [];
+  const successful = scopedLeads.filter((lead) => lead.status === "Успешно").length;
+  const revenue = scopedLeads.reduce((sum, lead) => sum + lead.amount, 0);
+  const costs = scopedLeads.reduce(
+    (sum, lead) => sum + lead.offers.reduce((offerSum, offer) => offerSum + offer.cdCost, 0),
+    0,
+  );
+  const conversion = scopedLeads.length ? (successful / scopedLeads.length) * 100 : 0;
+  const previousSuccessful = previousLeads.filter((lead) => lead.status === "Успешно").length;
+  const previousConversion = previousLeads.length
+    ? (previousSuccessful / previousLeads.length) * 100
+    : 0;
+  const leadDelta = previousLeads.length
+    ? ((scopedLeads.length - previousLeads.length) / previousLeads.length) * 100
+    : 0;
+  const conversionDelta = conversion - previousConversion;
+  const todaySessions = sessions.filter((session) => {
+    const signedIn = new Date(session.signedInAt);
+    return !Number.isNaN(signedIn.getTime()) && signedIn >= today && signedIn <= now;
+  });
+  const sessionAverage = todaySessions.length
+    ? todaySessions.reduce((sum, session) => {
+        const liveDuration = session.signedOutAt
+          ? session.durationSeconds
+          : Math.max(session.durationSeconds, (now.getTime() - new Date(session.signedInAt).getTime()) / 1000);
+        return sum + liveDuration;
+      }, 0) / todaySessions.length
+    : users.length
+      ? users.reduce(
+          (sum, user) => sum + (user.sessionSeconds ?? durationToSeconds(user.session)),
+          0,
+        ) / users.length
+      : 0;
+  const activeUserIds = new Set(
+    sessions.filter((session) => !session.signedOutAt).map((session) => session.userId),
+  );
+  const onlineUsers =
+    activeUserIds.size ||
+    users.filter((user) => user.isOnline ?? user.status === "Активен").length;
+  const problemLeads = scopedLeads.filter((lead) => lead.issue);
+  const sourceBreakdown = buildSourceStats(scopedLeads);
+
+  const productCounts = new Map<string, number>();
+  scopedLeads.forEach((lead) => {
+    const key = ["Дебет", "РКО", "Кредит", "МФО", "Регбиз"].includes(lead.product)
+      ? lead.product
+      : "HR и другие";
+    productCounts.set(key, (productCounts.get(key) ?? 0) + 1);
+  });
+  const products = [...productCounts.entries()]
+    .map(([name, count], index) => ({
+      name,
+      count,
+      value: scopedLeads.length ? (count / scopedLeads.length) * 100 : 0,
+      color: PRODUCT_COLORS[index % PRODUCT_COLORS.length],
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const todayHourlyLabels = Array.from({ length: 12 }, (_, index) =>
+    String(index + 9).padStart(2, "0"),
+  );
+  const todayHourlyValues = todayHourlyLabels.map((label) => {
+    const hour = Number(label);
+    return datedLeads.filter((lead) => {
+      const date = parsedLeadDate(lead);
+      return date && date >= today && date <= now && date.getHours() === hour;
+    }).length;
+  });
+
+  const bucketCount = period === "День" ? 12 : period === "Неделя" ? 7 : 14;
+  const chartLabels: string[] = [];
+  const chartValues: number[] = [];
+  if (period === "День") {
+    chartLabels.push(...todayHourlyLabels);
+    chartValues.push(...todayHourlyValues);
+  } else {
+    for (let offset = bucketCount - 1; offset >= 0; offset -= 1) {
+      const day = new Date(today);
+      day.setDate(day.getDate() - offset);
+      const nextDay = new Date(day);
+      nextDay.setDate(nextDay.getDate() + 1);
+      chartLabels.push(
+        period === "Неделя"
+          ? day.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "")
+          : String(day.getDate()).padStart(2, "0"),
+      );
+      chartValues.push(
+        datedLeads.filter((lead) => {
+          const date = parsedLeadDate(lead);
+          return date && date >= day && date < nextDay;
+        }).length,
+      );
+    }
+  }
+
+  const usersWithStats = users.map((user) => {
+    const userLeads = scopedLeads.filter((lead) => lead.manager === user.name);
+    const userSuccessful = userLeads.filter((lead) => lead.status === "Успешно").length;
+    return {
+      ...user,
+      leads: userLeads.length,
+      revenue: userLeads.reduce((sum, lead) => sum + lead.amount, 0),
+      conversion: userLeads.length ? (userSuccessful / userLeads.length) * 100 : 0,
+    };
+  });
+
+  return {
+    scopedLeads,
+    usersWithStats,
+    revenue,
+    netRevenue: Math.max(0, revenue - costs),
+    conversion,
+    leadDelta,
+    conversionDelta,
+    sessionsToday:
+      todaySessions.length || users.filter((user) => user.lastLogin.startsWith("Сегодня")).length,
+    averageSession: sessionAverage,
+    onlineUsers,
+    problemLeads,
+    sourceBreakdown,
+    products,
+    chartLabels,
+    chartValues: datedLeads.length
+      ? chartValues
+      : period === "День"
+        ? hourly
+        : daily.slice(-bucketCount),
+    todayHourlyLabels,
+    todayHourlyValues: datedLeads.length ? todayHourlyValues : hourly,
+  };
+}
 
 function StatusBadge({ status }: { status: LeadStatus }) {
   return <span className={`status status-${status.replace(" ", "-").toLowerCase()}`}>{status}</span>;
@@ -588,13 +854,16 @@ function BarChart({
   labels: string[];
   compact?: boolean;
 }) {
-  const max = Math.max(...values);
+  const max = Math.max(1, ...values);
   return (
     <div className={`bar-chart ${compact ? "bar-chart-compact" : ""}`}>
       {values.map((value, index) => (
         <div className="bar-column" key={`${labels[index]}-${value}`}>
           <div className="bar-track">
-            <span className="bar-fill" style={{ height: `${Math.max(8, (value / max) * 100)}%` }} />
+            <span
+              className="bar-fill"
+              style={{ height: value ? `${Math.max(8, (value / max) * 100)}%` : "0%" }}
+            />
           </div>
           <span>{labels[index]}</span>
         </div>
@@ -603,10 +872,28 @@ function BarChart({
   );
 }
 
-function Donut({ center, label }: { center: string; label: string }) {
+function Donut({
+  center,
+  label,
+  segments,
+}: {
+  center: string;
+  label: string;
+  segments?: Array<{ value: number; color: string }>;
+}) {
+  let cursor = 0;
+  const gradient = segments?.length
+    ? `conic-gradient(${segments
+        .map((segment) => {
+          const start = cursor;
+          cursor += segment.value;
+          return `${segment.color} ${start}% ${cursor}%`;
+        })
+        .join(", ")})`
+    : undefined;
   return (
     <div className="donut-wrap">
-      <div className="donut">
+      <div className="donut" style={gradient ? { background: gradient } : undefined}>
         <div className="donut-center">
           <strong>{center}</strong>
           <span>{label}</span>
@@ -643,6 +930,7 @@ export function CrmDashboard() {
   const [period, setPeriod] = useState<Period>("Месяц");
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [reports, setReports] = useState<TeamReport[]>(INITIAL_REPORTS);
   const [reportModal, setReportModal] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
@@ -660,6 +948,132 @@ export function CrmDashboard() {
 
   useEffect(() => {
     let cancelled = false;
+
+    fetch("/api/bootstrap")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("CRM data unavailable");
+        return (await response.json()) as BootstrapPayload;
+      })
+      .then((payload) => {
+        if (cancelled) return;
+
+        const teamNames = new Map((payload.teams ?? []).map((team) => [team.id, team.name]));
+        const rawUsers = payload.users ?? [];
+        const userNames = new Map(rawUsers.map((user) => [user.id, user.name]));
+        const offerById = new Map((payload.offers ?? []).map((offer) => [offer.id, offer]));
+        const leadOffersByLead = new Map<number, NonNullable<BootstrapPayload["leadOffers"]>>();
+        (payload.leadOffers ?? []).forEach((leadOffer) => {
+          const current = leadOffersByLead.get(leadOffer.leadId) ?? [];
+          current.push(leadOffer);
+          leadOffersByLead.set(leadOffer.leadId, current);
+        });
+        const sessionRows = payload.sessions ?? [];
+        setSessions(sessionRows);
+
+        if (rawUsers.length) {
+          const roleLabels: Record<string, string> = {
+            leader: "Тимлид",
+            manager: "Менеджер",
+            influencer: "Лидогенератор",
+            partner: "Партнёр",
+            admin: "Администратор",
+            owner: "Владелец",
+          };
+          const hydratedUsers = rawUsers.map<User>((user) => {
+            const userSessions = sessionRows
+              .filter((session) => session.userId === user.id)
+              .sort((a, b) => b.signedInAt.localeCompare(a.signedInAt));
+            const latestSession = userSessions[0];
+            const isOnline = userSessions.some((session) => !session.signedOutAt);
+            return {
+              id: user.id,
+              name: user.name,
+              initials: initialsOf(user.name),
+              role: roleLabels[user.role] ?? user.role,
+              team: user.teamId ? teamNames.get(user.teamId) ?? "Без команды" : "Без команды",
+              status: user.status === "active" ? "Активен" : "Деактивирован",
+              leads: 0,
+              revenue: 0,
+              conversion: 0,
+              lastLogin: latestSession
+                ? new Date(latestSession.signedInAt).toLocaleString("ru-RU", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "Никогда",
+              session: latestSession ? formatDuration(latestSession.durationSeconds) : "0 мин",
+              topOffer: "—",
+              lastLoginAt: latestSession?.signedInAt,
+              sessionSeconds: latestSession?.durationSeconds ?? 0,
+              isOnline,
+            };
+          });
+          setUsers(hydratedUsers);
+        }
+
+        if (payload.leads?.length) {
+          const allowedStatuses: LeadStatus[] = ["Новый", "В работе", "Успешно", "Отказ"];
+          const allowedIssues: NonNullable<Lead["issue"]>[] = [
+            "Нет контакта",
+            "Нет суммы",
+            "Низкое качество",
+            "Застрял",
+          ];
+          const hydratedLeads = payload.leads.map<Lead>((lead) => {
+            const attachedOffers = leadOffersByLead.get(lead.id) ?? [];
+            const createdAt = new Date(lead.createdAt);
+            return {
+              id: lead.id,
+              client: lead.clientName,
+              initials: initialsOf(lead.clientName),
+              phone: lead.phone ?? "Не указан",
+              telegram: lead.telegram ?? "Не указан",
+              whatsapp: lead.whatsapp ?? "Не указан",
+              source: lead.source,
+              product: lead.product,
+              status: allowedStatuses.includes(lead.status as LeadStatus)
+                ? (lead.status as LeadStatus)
+                : "Новый",
+              amount: lead.amount,
+              manager: lead.managerId ? userNames.get(lead.managerId) ?? "Не назначен" : "Не назначен",
+              team: lead.teamId ? teamNames.get(lead.teamId) ?? "Без команды" : "Без команды",
+              created: Number.isNaN(createdAt.getTime())
+                ? lead.createdAt
+                : createdAt.toLocaleString("ru-RU", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+              createdAt: lead.createdAt,
+              description: lead.description,
+              issue: allowedIssues.includes(lead.issueType as NonNullable<Lead["issue"]>)
+                ? (lead.issueType as NonNullable<Lead["issue"]>)
+                : undefined,
+              ai: lead.aiScore ?? 50,
+              offers: attachedOffers.map((leadOffer) => {
+                const offer = leadOffer.offerId ? offerById.get(leadOffer.offerId) : undefined;
+                return {
+                  bank: offer?.partnerName ?? "Партнёр",
+                  product: offer?.title ?? lead.product,
+                  stage: leadOffer.stage,
+                  payout: leadOffer.payout || offer?.payout || 0,
+                  cdCost: leadOffer.targetActionCost || offer?.targetActionCost || 0,
+                  delivery: leadOffer.deliveryNote ?? leadOffer.deliveryAt ?? "Не указано",
+                };
+              }),
+              persisted: true,
+            };
+          });
+          setLeads(hydratedLeads);
+        }
+      })
+      .catch(() => {
+        // Демо-данные остаются резервом, если база временно недоступна или ещё не заполнена.
+      });
 
     fetch("/api/reports")
       .then(async (response) => {
@@ -680,8 +1094,12 @@ export function CrmDashboard() {
     };
   }, []);
 
+  const calculatedUsers = useMemo(
+    () => buildDashboardStats(leads, users, sessions, "Месяц").usersWithStats,
+    [leads, users, sessions],
+  );
   const selectedLead = leads.find((lead) => lead.id === selectedLeadId) ?? null;
-  const selectedUser = users.find((user) => user.id === selectedUserId) ?? null;
+  const selectedUser = calculatedUsers.find((user) => user.id === selectedUserId) ?? null;
 
   const filteredLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -697,9 +1115,7 @@ export function CrmDashboard() {
     });
   }, [leads, search, statusFilter]);
 
-  const problemLeads = leads.filter(
-    (lead) => lead.issue && (problemFilter === "Все проблемы" || lead.issue === problemFilter),
-  );
+  const problemLeads = leads.filter((lead) => lead.issue);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -747,6 +1163,62 @@ export function CrmDashboard() {
     setReports((current) => [payload.report, ...current]);
     setReportModal(false);
     showToast("Отчёт тимлида сохранён");
+  };
+
+  const saveLead = async (lead: Lead) => {
+    const isExisting = Boolean(lead.persisted);
+    const response = await fetch("/api/leads", {
+      method: isExisting ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        isExisting
+          ? {
+              id: lead.id,
+              source: lead.source,
+              product: lead.product,
+              status: lead.status,
+              amount: lead.amount,
+              description: lead.description,
+              issueType: lead.issue ?? null,
+            }
+          : {
+              clientName: lead.client,
+              phone: lead.phone === "Не указан" ? "" : lead.phone,
+              telegram: lead.telegram === "Не указан" ? "" : lead.telegram,
+              whatsapp: lead.whatsapp === "Не указан" ? "" : lead.whatsapp,
+              description: lead.description,
+              source: lead.source,
+              product: lead.product,
+              status: lead.status,
+              amount: lead.amount,
+            },
+      ),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(payload.error ?? "Не удалось сохранить лид");
+    }
+
+    const payload = (await response.json()) as {
+      lead: { id: number; createdAt?: string; updatedAt?: string };
+    };
+    const savedId = payload.lead.id;
+    setLeads((current) =>
+      current.map((item) =>
+        item.id === lead.id
+          ? {
+              ...item,
+              id: savedId,
+              persisted: true,
+              createdAt: item.createdAt ?? payload.lead.createdAt ?? new Date().toISOString(),
+            }
+          : item,
+      ),
+    );
+    setSelectedLeadId(savedId);
+    setEditingLead(false);
+    showToast("Изменения по лиду сохранены");
   };
 
   return (
@@ -841,6 +1313,7 @@ export function CrmDashboard() {
               setPeriod={setPeriod}
               users={users}
               leads={leads}
+              sessions={sessions}
               setMetricModal={setMetricModal}
               openUser={openUser}
               navigate={navigate}
@@ -870,9 +1343,11 @@ export function CrmDashboard() {
                   manager: "Не назначен",
                   team: "Без команды",
                   created: "Только что",
+                  createdAt: new Date().toISOString(),
                   description: "Заполните данные нового лида.",
                   ai: 50,
                   offers: [],
+                  persisted: false,
                 };
                 setLeads((current) => [blank, ...current]);
                 setSelectedLeadId(nextId);
@@ -884,6 +1359,8 @@ export function CrmDashboard() {
           {view === "users" && (
             <UsersView
               users={users}
+              leads={leads}
+              sessions={sessions}
               openUser={openUser}
               onInvite={() => setMetricModal("invite")}
             />
@@ -897,7 +1374,14 @@ export function CrmDashboard() {
             />
           )}
           {view === "analytics" && (
-            <AnalyticsView period={period} setPeriod={setPeriod} users={users} openUser={openUser} />
+            <AnalyticsView
+              period={period}
+              setPeriod={setPeriod}
+              users={users}
+              leads={leads}
+              sessions={sessions}
+              openUser={openUser}
+            />
           )}
           {view === "structure" && (
             <StructureView period={period} setPeriod={setPeriod} navigate={navigate} />
@@ -938,8 +1422,9 @@ export function CrmDashboard() {
             setEditingLead(false);
           }}
           onSave={() => {
-            setEditingLead(false);
-            showToast("Изменения по лиду сохранены");
+            void saveLead(selectedLead).catch((error) =>
+              showToast(error instanceof Error ? error.message : "Не удалось сохранить лид"),
+            );
           }}
         />
       )}
@@ -976,7 +1461,7 @@ export function CrmDashboard() {
       {metricModal && (
         <MetricModal
           type={metricModal}
-          users={users}
+          users={calculatedUsers}
           leads={leads}
           onClose={() => setMetricModal(null)}
           openUser={(id) => {
@@ -1005,6 +1490,7 @@ function Overview({
   setPeriod,
   users,
   leads,
+  sessions,
   setMetricModal,
   openUser,
   navigate,
@@ -1013,24 +1499,33 @@ function Overview({
   setPeriod: (period: Period) => void;
   users: User[];
   leads: Lead[];
+  sessions: SessionRecord[];
   setMetricModal: (type: string) => void;
   openUser: (id: number) => void;
   navigate: (view: View) => void;
 }) {
-  const periodData = {
-    День: { leads: "19", revenue: "184 200 ₽", conversion: "28,6%", delta: "+12,4%" },
-    Неделя: { leads: "86", revenue: "742 800 ₽", conversion: "26,9%", delta: "+8,1%" },
-    Месяц: { leads: "208", revenue: "2 881 600 ₽", conversion: "27,4%", delta: "+18,6%" },
-  }[period];
-  const statusCounts = (["Новый", "В работе", "Успешно", "Отказ"] as LeadStatus[]).map(
-    (status) => ({ status, count: leads.filter((lead) => lead.status === status).length }),
+  const stats = useMemo(
+    () => buildDashboardStats(leads, users, sessions, period),
+    [leads, users, sessions, period],
   );
+  const statusCounts = (["Новый", "В работе", "Успешно", "Отказ"] as LeadStatus[]).map(
+    (status) => ({ status, count: stats.scopedLeads.filter((lead) => lead.status === status).length }),
+  );
+  const bestUser = [...stats.usersWithStats].sort((a, b) => b.revenue - a.revenue)[0];
+  const bestSource = stats.sourceBreakdown[0];
+  const dateLabel = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    weekday: "long",
+  }).format(new Date());
+  const peakHourIndex = stats.todayHourlyValues.indexOf(Math.max(...stats.todayHourlyValues));
+  const peakHour = stats.todayHourlyLabels[Math.max(0, peakHourIndex)] ?? "—";
 
   return (
     <>
       <div className="page-title">
         <div>
-          <span className="eyebrow">23 июля · четверг</span>
+          <span className="eyebrow">{dateLabel}</span>
           <h1>Добрый день, Алексей</h1>
           <p>Вот что происходит с лидами и командами прямо сейчас.</p>
         </div>
@@ -1042,8 +1537,9 @@ function Overview({
         <div>
           <strong>Сводка за 30 секунд</strong>
           <p>
-            Анна Сидорова лидирует по выручке. 4 лида требуют внимания, а конверсия
-            Авито выросла на 6,2%. Пик входящих сегодня ожидается в 16:00.
+            {bestUser?.name ?? "Команда"} лидирует по выручке. {stats.problemLeads.length} лидов
+            требуют внимания. Лучший источник за период — {bestSource?.name ?? "пока не определён"}
+            {bestSource ? ` с конверсией ${formatPercent(bestSource.conversion)}` : ""}.
           </p>
         </div>
         <button onClick={() => navigate("problems")}>Разобрать проблемы →</button>
@@ -1052,48 +1548,48 @@ function Overview({
       <div className="kpi-grid">
         <KpiCard
           label="Всего лидов"
-          value={periodData.leads}
-          meta={`${periodData.delta} к прошлому периоду`}
+          value={String(stats.scopedLeads.length)}
+          meta={`${stats.leadDelta >= 0 ? "+" : ""}${formatPercent(stats.leadDelta)} к прошлому периоду`}
           accent="#f7c900"
           icon="◫"
           onClick={() => setMetricModal("leads")}
         />
         <KpiCard
           label="Общая сумма"
-          value={periodData.revenue}
-          meta="Чистыми 2 137 400 ₽"
+          value={money(stats.revenue)}
+          meta={`Чистыми ${money(stats.netRevenue)}`}
           accent="#ffb800"
           icon="₽"
           onClick={() => setMetricModal("revenue")}
         />
         <KpiCard
           label="Конверсия"
-          value={periodData.conversion}
-          meta="+3,8% по источникам"
+          value={formatPercent(stats.conversion)}
+          meta={`${stats.conversionDelta >= 0 ? "+" : ""}${formatPercent(stats.conversionDelta)} к прошлому периоду`}
           accent="#fcd34d"
           icon="%"
           onClick={() => setMetricModal("conversion")}
         />
         <KpiCard
           label="Пользователей"
-          value="18"
-          meta="13 активны сейчас"
+          value={String(users.length)}
+          meta={`${stats.onlineUsers} активны сейчас`}
           accent="#eab308"
           icon="◎"
           onClick={() => setMetricModal("users")}
         />
         <KpiCard
           label="Входов сегодня"
-          value="42"
-          meta="Средняя сессия 2 ч 18 мин"
+          value={String(stats.sessionsToday)}
+          meta={`Средняя сессия ${formatDuration(stats.averageSession)}`}
           accent="#f59e0b"
           icon="↗"
           onClick={() => setMetricModal("sessions")}
         />
         <KpiCard
           label="Проблемные лиды"
-          value="4"
-          meta="2 требуют реакции сегодня"
+          value={String(stats.problemLeads.length)}
+          meta={`${stats.problemLeads.filter((lead) => lead.status !== "Отказ").length} требуют реакции`}
           accent="#ff6e91"
           icon="!"
           onClick={() => setMetricModal("problems")}
@@ -1109,26 +1605,32 @@ function Overview({
         >
           <div className="chart-summary">
             <div>
-              <strong>208</strong>
+              <strong>{stats.scopedLeads.length}</strong>
               <span>лидов за период</span>
             </div>
-            <span className="positive">+18,6%</span>
+            <span className={stats.leadDelta >= 0 ? "positive" : "warning-copy"}>
+              {stats.leadDelta >= 0 ? "+" : ""}{formatPercent(stats.leadDelta)}
+            </span>
           </div>
           <BarChart
-            values={daily}
-            labels={["10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"]}
+            values={stats.chartValues}
+            labels={stats.chartLabels}
           />
         </Panel>
 
         <Panel title="Распределение по продуктам" subtitle="Количество лидов">
           <div className="distribution">
-            <Donut center="208" label="лидов" />
+            <Donut
+              center={String(stats.scopedLeads.length)}
+              label="лидов"
+              segments={stats.products.map((item) => ({ value: item.value, color: item.color }))}
+            />
             <div className="legend">
-              {productStats.map((item) => (
+              {stats.products.map((item) => (
                 <div key={item.name}>
                   <i style={{ background: item.color }} />
                   <span>{item.name}</span>
-                  <strong>{item.value}%</strong>
+                  <strong>{formatPercent(item.value)}</strong>
                 </div>
               ))}
             </div>
@@ -1159,7 +1661,7 @@ function Overview({
           className="span-2"
         >
           <div className="ranking">
-            {[...users]
+            {[...stats.usersWithStats]
               .sort((a, b) => b.revenue - a.revenue)
               .slice(0, 4)
               .map((user, index) => (
@@ -1178,13 +1680,13 @@ function Overview({
 
         <Panel
           title="Сегодня по часам"
-          subtitle="Пик: 16:00–17:00"
+          subtitle={`Пик: ${peakHour}:00–${String((Number(peakHour) + 1) % 24).padStart(2, "0")}:00`}
           action={<span className="live-pill">● LIVE</span>}
         >
           <BarChart
             compact
-            values={hourly}
-            labels={["09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"]}
+            values={stats.todayHourlyValues}
+            labels={stats.todayHourlyLabels}
           />
         </Panel>
       </div>
@@ -1357,13 +1859,22 @@ function TeamsView({ users, openUser }: { users: User[]; openUser: (id: number) 
 
 function UsersView({
   users,
+  leads,
+  sessions,
   openUser,
   onInvite,
 }: {
   users: User[];
+  leads: Lead[];
+  sessions: SessionRecord[];
   openUser: (id: number) => void;
   onInvite: () => void;
 }) {
+  const stats = useMemo(
+    () => buildDashboardStats(leads, users, sessions, "Месяц"),
+    [leads, users, sessions],
+  );
+  const inactiveUsers = users.filter((user) => user.status === "Деактивирован").length;
   return (
     <>
       <div className="page-title compact-title">
@@ -1375,10 +1886,10 @@ function UsersView({
         <button className="primary-button" onClick={onInvite}>＋ Пригласить</button>
       </div>
       <div className="mini-kpis">
-        <div><span>Всего</span><strong>18</strong><small>пользователей</small></div>
-        <div><span>Онлайн</span><strong className="lime">13</strong><small>прямо сейчас</small></div>
-        <div><span>Входов сегодня</span><strong>42</strong><small>средняя сессия 2:18</small></div>
-        <div><span>Деактивированы</span><strong className="pink">1</strong><small>ограничен доступ</small></div>
+        <div><span>Всего</span><strong>{users.length}</strong><small>пользователей</small></div>
+        <div><span>Онлайн</span><strong className="lime">{stats.onlineUsers}</strong><small>прямо сейчас</small></div>
+        <div><span>Входов сегодня</span><strong>{stats.sessionsToday}</strong><small>средняя сессия {formatDuration(stats.averageSession)}</small></div>
+        <div><span>Деактивированы</span><strong className="pink">{inactiveUsers}</strong><small>ограничен доступ</small></div>
       </div>
       <Panel title="Список пользователей" subtitle="Нажмите на пользователя, чтобы открыть статистику">
         <div className="table-scroll">
@@ -1390,14 +1901,14 @@ function UsersView({
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {stats.usersWithStats.map((user) => (
                 <tr key={user.id} onClick={() => openUser(user.id)}>
                   <td><div className="person-cell"><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>ID · {String(user.id).padStart(4, "0")}</small></span></div></td>
                   <td><span className="role-pill">{user.role}</span></td>
                   <td>{user.team}</td>
                   <td><strong>{user.leads}</strong></td>
                   <td><strong>{money(user.revenue)}</strong></td>
-                  <td>{user.conversion}%</td>
+                  <td>{formatPercent(user.conversion)}</td>
                   <td>{user.lastLogin}</td>
                   <td><span className={`user-state ${user.status === "Активен" ? "is-active" : ""}`}>● {user.status}</span></td>
                   <td><button className="row-action">›</button></td>
@@ -1422,13 +1933,25 @@ function ProblemsView({
   setFilter: (value: string) => void;
   onOpen: (id: number) => void;
 }) {
-  const categories = [
-    { name: "Все проблемы", count: 4, color: "#ff6e91" },
-    { name: "Нет контакта", count: 1, color: "#ffb35c" },
-    { name: "Нет суммы", count: 1, color: "#46d9ff" },
-    { name: "Низкое качество", count: 1, color: "#a78bfa" },
-    { name: "Застрял", count: 1, color: "#bdff38" },
+  const issueNames: NonNullable<Lead["issue"]>[] = [
+    "Нет контакта",
+    "Нет суммы",
+    "Низкое качество",
+    "Застрял",
   ];
+  const categories = [
+    { name: "Все проблемы", count: leads.length, color: "#ff6e91" },
+    ...issueNames.map((name, index) => ({
+      name,
+      count: leads.filter((lead) => lead.issue === name).length,
+      color: ["#ffb35c", "#46d9ff", "#a78bfa", "#bdff38"][index],
+    })),
+  ];
+  const visibleLeads = filter === "Все проблемы" ? leads : leads.filter((lead) => lead.issue === filter);
+  const sourceProblems = [...leads.reduce((grouped, lead) => {
+    grouped.set(lead.source, (grouped.get(lead.source) ?? 0) + 1);
+    return grouped;
+  }, new Map<string, number>()).entries()].sort((a, b) => b[1] - a[1]);
   return (
     <>
       <div className="page-title compact-title">
@@ -1453,9 +1976,9 @@ function ProblemsView({
         ))}
       </div>
       <div className="problems-layout">
-        <Panel title={`Требуют внимания · ${leads.length}`} subtitle="Проблема, источник и ответственный">
+        <Panel title={`Требуют внимания · ${visibleLeads.length}`} subtitle="Проблема, источник и ответственный">
           <div className="problem-list">
-            {leads.map((lead) => (
+            {visibleLeads.map((lead) => (
               <button key={lead.id} onClick={() => onOpen(lead.id)}>
                 <Avatar initials={lead.initials} />
                 <span className="problem-main">
@@ -1472,17 +1995,17 @@ function ProblemsView({
         <div className="side-stack">
           <Panel title="Быстрые рекомендации" subtitle="С чего начать">
             <ul className="recommendations">
-              <li><span>01</span><p><strong>Связаться с Александром</strong>Нет контакта более 45 минут · Яндекс</p></li>
-              <li><span>02</span><p><strong>Уточнить сумму у Ольги</strong>Сделка не может перейти в работу · Telegram</p></li>
-              <li><span>03</span><p><strong>Проверить документы Павла</strong>Статус не менялся 19 часов · Реферал</p></li>
+              {leads.slice(0, 3).map((lead, index) => (
+                <li key={lead.id}><span>0{index + 1}</span><p><strong>Проверить лид «{lead.client}»</strong>{lead.issue} · {lead.source} · {lead.manager}</p></li>
+              ))}
+              {!leads.length && <li><span>✓</span><p><strong>Проблем нет</strong>Все лиды обработаны или не требуют реакции.</p></li>}
             </ul>
           </Panel>
           <Panel title="По источникам" subtitle="Доля проблемных лидов">
             <div className="source-problems">
-              <div><span>Авито</span><div><i style={{ width: "25%" }} /></div><strong>1</strong></div>
-              <div><span>Яндекс</span><div><i style={{ width: "25%" }} /></div><strong>1</strong></div>
-              <div><span>Telegram</span><div><i style={{ width: "25%" }} /></div><strong>1</strong></div>
-              <div><span>Реферал</span><div><i style={{ width: "25%" }} /></div><strong>1</strong></div>
+              {sourceProblems.map(([source, count]) => (
+                <div key={source}><span>{source}</span><div><i style={{ width: `${leads.length ? (count / leads.length) * 100 : 0}%` }} /></div><strong>{count}</strong></div>
+              ))}
             </div>
           </Panel>
         </div>
@@ -1495,13 +2018,22 @@ function AnalyticsView({
   period,
   setPeriod,
   users,
+  leads,
+  sessions,
   openUser,
 }: {
   period: Period;
   setPeriod: (period: Period) => void;
   users: User[];
+  leads: Lead[];
+  sessions: SessionRecord[];
   openUser: (id: number) => void;
 }) {
+  const stats = useMemo(
+    () => buildDashboardStats(leads, users, sessions, period),
+    [leads, users, sessions, period],
+  );
+  const costs = Math.max(0, stats.revenue - stats.netRevenue);
   return (
     <>
       <div className="page-title compact-title">
@@ -1513,27 +2045,27 @@ function AnalyticsView({
         <div className="title-actions"><PeriodControl period={period} setPeriod={setPeriod} /><button className="secondary-button">⇩ Отчёт</button></div>
       </div>
       <div className="mini-kpis">
-        <div><span>Лиды</span><strong>208</strong><small className="positive">+18,6%</small></div>
-        <div><span>Оборот</span><strong>2,88 млн ₽</strong><small className="positive">+12,1%</small></div>
-        <div><span>Конверсия</span><strong>27,4%</strong><small className="positive">+3,8%</small></div>
-        <div><span>Чистыми</span><strong>2,14 млн ₽</strong><small>−744,2 тыс. затрат</small></div>
+        <div><span>Лиды</span><strong>{stats.scopedLeads.length}</strong><small className={stats.leadDelta >= 0 ? "positive" : "warning-copy"}>{stats.leadDelta >= 0 ? "+" : ""}{formatPercent(stats.leadDelta)}</small></div>
+        <div><span>Оборот</span><strong>{money(stats.revenue)}</strong><small>за выбранный период</small></div>
+        <div><span>Конверсия</span><strong>{formatPercent(stats.conversion)}</strong><small className={stats.conversionDelta >= 0 ? "positive" : "warning-copy"}>{stats.conversionDelta >= 0 ? "+" : ""}{formatPercent(stats.conversionDelta)}</small></div>
+        <div><span>Чистыми</span><strong>{money(stats.netRevenue)}</strong><small>−{money(costs)} затрат</small></div>
       </div>
       <div className="dashboard-grid">
         <Panel title="Динамика по дням" subtitle="Новые и успешные лиды" className="span-2">
-          <div className="chart-summary"><div><strong>208</strong><span>всего лидов</span></div><span className="positive">+18,6%</span></div>
-          <BarChart values={daily} labels={["10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"]} />
+          <div className="chart-summary"><div><strong>{stats.scopedLeads.length}</strong><span>всего лидов</span></div><span className={stats.leadDelta >= 0 ? "positive" : "warning-copy"}>{stats.leadDelta >= 0 ? "+" : ""}{formatPercent(stats.leadDelta)}</span></div>
+          <BarChart values={stats.chartValues} labels={stats.chartLabels} />
         </Panel>
         <Panel title="По часам" subtitle="Средний день">
-          <BarChart compact values={hourly} labels={["09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"]} />
+          <BarChart compact values={stats.todayHourlyValues} labels={stats.todayHourlyLabels} />
         </Panel>
         <Panel title="Конверсия по источникам" subtitle="Сумма и результат" className="span-2">
           <div className="source-table">
-            {sourceStats.map((source) => (
+            {stats.sourceBreakdown.map((source) => (
               <div key={source.name}>
                 <i style={{ background: source.color }} />
                 <span><strong>{source.name}</strong><small>{source.leads} лидов</small></span>
-                <div className="progress"><span style={{ width: `${source.conversion * 2.4}%`, background: source.color }} /></div>
-                <strong>{source.conversion}%</strong>
+                <div className="progress"><span style={{ width: `${Math.min(100, source.conversion)}%`, background: source.color }} /></div>
+                <strong>{formatPercent(source.conversion)}</strong>
                 <strong>{money(source.revenue)}</strong>
               </div>
             ))}
@@ -1541,19 +2073,19 @@ function AnalyticsView({
         </Panel>
         <Panel title="Продукты" subtitle="Доля от общего объёма">
           <div className="distribution vertical">
-            <Donut center="6" label="категорий" />
+            <Donut center={String(stats.products.length)} label="категорий" segments={stats.products.map((item) => ({ value: item.value, color: item.color }))} />
             <div className="legend">
-              {productStats.map((item) => <div key={item.name}><i style={{ background: item.color }} /><span>{item.name}</span><strong>{item.value}%</strong></div>)}
+              {stats.products.map((item) => <div key={item.name}><i style={{ background: item.color }} /><span>{item.name}</span><strong>{formatPercent(item.value)}</strong></div>)}
             </div>
           </div>
         </Panel>
         <Panel title="Топ по конверсии" subtitle="Пользователи" className="span-3">
           <div className="leader-grid">
-            {[...users].sort((a, b) => b.conversion - a.conversion).slice(0, 3).map((user, index) => (
+            {[...stats.usersWithStats].sort((a, b) => b.conversion - a.conversion).slice(0, 3).map((user, index) => (
               <button key={user.id} onClick={() => openUser(user.id)}>
                 <span className="position">0{index + 1}</span><Avatar initials={user.initials} large />
                 <span><strong>{user.name}</strong><small>{user.team} · {user.topOffer}</small></span>
-                <b>{user.conversion}%</b>
+                <b>{formatPercent(user.conversion)}</b>
               </button>
             ))}
           </div>
@@ -2517,6 +3049,7 @@ function MetricModal({
   openUser: (id: number) => void;
   showToast: (message: string) => void;
 }) {
+  const liveSourceStats = buildSourceStats(leads);
   const titles: Record<string, [string, string]> = {
     leads: ["Кто принёс лиды", "Рейтинг по количеству за месяц"],
     revenue: ["Откуда приходит выручка", "Сумма по каждому источнику"],
@@ -2537,10 +3070,14 @@ function MetricModal({
       <div className="modal">
         <div className="modal-head"><div><h2>{title}</h2><p>{subtitle}</p></div><button onClick={onClose}>×</button></div>
         {type === "leads" && <div className="metric-list">{[...users].sort((a, b) => b.leads - a.leads).map((user, index) => <button key={user.id} onClick={() => openUser(user.id)}><span className="rank">{index + 1}</span><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>{user.team}</small></span><b>{user.leads} лидов</b><i>›</i></button>)}</div>}
-        {type === "revenue" && <div className="metric-list sources">{sourceStats.map((source, index) => <div key={source.name}><span className="rank">{index + 1}</span><i style={{ background: source.color }} /><span><strong>{source.name}</strong><small>{source.leads} лидов</small></span><b>{money(source.revenue)}</b></div>)}</div>}
-        {type === "conversion" && <div className="metric-list sources">{sourceStats.sort((a, b) => b.conversion - a.conversion).map((source, index) => <div key={source.name}><span className="rank">{index + 1}</span><i style={{ background: source.color }} /><span><strong>{source.name}</strong><small>{source.leads} лидов</small></span><div className="progress"><span style={{ width: `${source.conversion * 2.5}%`, background: source.color }} /></div><b>{source.conversion}%</b></div>)}</div>}
+        {type === "revenue" && <div className="metric-list sources">{liveSourceStats.map((source, index) => <div key={source.name}><span className="rank">{index + 1}</span><i style={{ background: source.color }} /><span><strong>{source.name}</strong><small>{source.leads} лидов</small></span><b>{money(source.revenue)}</b></div>)}</div>}
+        {type === "conversion" && <div className="metric-list sources">{[...liveSourceStats].sort((a, b) => b.conversion - a.conversion).map((source, index) => <div key={source.name}><span className="rank">{index + 1}</span><i style={{ background: source.color }} /><span><strong>{source.name}</strong><small>{source.leads} лидов</small></span><div className="progress"><span style={{ width: `${Math.min(100, source.conversion)}%`, background: source.color }} /></div><b>{formatPercent(source.conversion)}</b></div>)}</div>}
         {type === "users" && <div className="metric-list">{users.map((user) => <button key={user.id} onClick={() => openUser(user.id)}><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>{user.role} · {user.team}</small></span><span className={`user-state ${user.status === "Активен" ? "is-active" : ""}`}>● {user.status}</span><i>›</i></button>)}</div>}
-        {type === "sessions" && <div className="metric-list">{users.filter((user) => user.lastLogin.startsWith("Сегодня")).map((user) => <button key={user.id} onClick={() => openUser(user.id)}><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>Вход: {user.lastLogin.replace("Сегодня, ", "")}</small></span><b>{user.session}</b><i>›</i></button>)}</div>}
+        {type === "sessions" && <div className="metric-list">{users.filter((user) => {
+          if (!user.lastLoginAt) return user.lastLogin.startsWith("Сегодня");
+          const loginDate = new Date(user.lastLoginAt);
+          return !Number.isNaN(loginDate.getTime()) && loginDate >= startOfDay(new Date());
+        }).map((user) => <button key={user.id} onClick={() => openUser(user.id)}><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>Вход: {user.lastLogin.replace("Сегодня, ", "")}</small></span><b>{user.session}</b><i>›</i></button>)}</div>}
         {type === "problems" && <div className="metric-list">{leads.filter((lead) => lead.issue).map((lead) => <div key={lead.id}><Avatar initials={lead.initials} /><span><strong>{lead.client}</strong><small>{lead.issue} · {lead.manager}</small></span><StatusBadge status={lead.status} /></div>)}</div>}
         {simpleForm && (
           <div className="modal-form">
