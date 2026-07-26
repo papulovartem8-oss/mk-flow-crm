@@ -970,11 +970,11 @@ function AccessLogin({
           <p>Вход по коду доступа. Регистрация закрыта.</p>
         </div>
         <form onSubmit={submit}>
-          <label><span>Имя агента</span><input value={agentName} onChange={(event) => setAgentName(event.target.value)} placeholder="Дмитрий" autoComplete="name" autoFocus /></label>
-          <label><span>Код доступа</span><input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="Введите код" autoComplete="one-time-code" /></label>
-          <div className="access-team-preview"><span>КОМАНДА</span><strong>Команда «Excellent»</strong><b>{code.toLowerCase().includes("admin") ? "Admin" : code.toLowerCase().includes("lead") ? "Leader" : "User"}</b></div>
+          <label><span>Имя агента</span><input value={agentName} onChange={(event) => setAgentName(event.target.value)} placeholder="Например, Дмитрий" autoComplete="name" autoFocus /></label>
+          <label><span>Код доступа</span><input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="MK-XXXX" autoComplete="one-time-code" /></label>
           {error && <div className="access-login-error">{error}</div>}
           <button className="primary-button" disabled={submitting || !code.trim() || !agentName.trim()}>{submitting ? "Проверяем…" : "Войти"}</button>
+          <p className="access-login-help">Нет кода доступа? Обратитесь к своему тимлиду или администратору.</p>
         </form>
       </section>
     </main>
