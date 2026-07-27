@@ -70,6 +70,12 @@ type NavGroup = {
 
 type LeadStatus = "Новый" | "В работе" | "Успешно" | "Отказ";
 type Period = "За всё время" | "День" | "Неделя" | "Месяц";
+const PERIOD_DESCRIPTIONS: Record<Period, string> = {
+  "За всё время": "Весь доступный период",
+  "День": "С 00:00 до 23:59 сегодня",
+  "Неделя": "С понедельника по воскресенье",
+  "Месяц": "С первого по последнее число месяца",
+};
 
 // Направления офферов (ТЗ) и статусы оффера по лиду.
 type Direction = "РКО" | "Беттинг" | "МФО";
@@ -181,7 +187,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "analytics", label: "Инсайды", icon: Lightbulb },
       { id: "mini-app", label: "Mini App", icon: DeviceMobile },
       { id: "info", label: "Инфораздел", icon: BookOpen },
-      { id: "blogs", label: "Блоги и задачи", icon: ClipboardText },
+      { id: "blogs", label: "Блоки и задачи", icon: ClipboardText },
     ],
   },
   {
@@ -655,12 +661,10 @@ const sourceStats = [
 ];
 
 const productStats = [
-  { name: "Дебет", value: 31, color: "#bdff38" },
-  { name: "РКО", value: 22, color: "#46d9ff" },
-  { name: "Кредит", value: 18, color: "#a78bfa" },
-  { name: "МФО", value: 12, color: "#ffb35c" },
-  { name: "Регбиз", value: 9, color: "#ff6e91" },
-  { name: "HR и другие", value: 8, color: "#62708c" },
+  { name: "РКО", value: 34, color: "#46d9ff" },
+  { name: "Регбиз", value: 25, color: "#ffb35c" },
+  { name: "Беттинг", value: 23, color: "#a78bfa" },
+  { name: "МФО", value: 18, color: "#ff6e91" },
 ];
 
 const daily = [38, 52, 44, 61, 78, 70, 86, 72, 94, 88, 102, 118, 109, 126];
@@ -794,16 +798,20 @@ function PeriodControl({
   setPeriod: (period: Period) => void;
 }) {
   return (
-    <div className="period-control">
-      {(["За всё время", "День", "Неделя", "Месяц"] as Period[]).map((item) => (
-        <button
-          className={period === item ? "active" : ""}
-          key={item}
-          onClick={() => setPeriod(item)}
-        >
-          {item}
-        </button>
-      ))}
+    <div className="period-control-wrap">
+      <div className="period-control">
+        {(["За всё время", "День", "Неделя", "Месяц"] as Period[]).map((item) => (
+          <button
+            className={period === item ? "active" : ""}
+            key={item}
+            title={PERIOD_DESCRIPTIONS[item]}
+            onClick={() => setPeriod(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      <span className="period-description">{PERIOD_DESCRIPTIONS[period]}</span>
     </div>
   );
 }
@@ -1286,7 +1294,7 @@ export function CrmDashboard() {
           {view === "rko-stats" && <StatsView kind="РКО" showToast={showToast} />}
           {view === "media-stats" && <StatsView kind="Медиа" showToast={showToast} />}
           {view === "accounting" && <AccountingView showToast={showToast} />}
-          {view === "blogs" && <BlogsView />}
+          {view === "blogs" && <BlogsView showToast={showToast} />}
         </div>
       </main>
 
@@ -1415,18 +1423,6 @@ function Overview({
         <PeriodControl period={period} setPeriod={setPeriod} />
       </div>
 
-      <section className="ai-brief">
-        <span className="ai-mark">AI</span>
-        <div>
-          <strong>Сводка за 30 секунд</strong>
-          <p>
-            Анна Сидорова лидирует по выручке. 4 лида требуют внимания, а конверсия
-            Авито выросла на 6,2%. Пик входящих сегодня ожидается в 16:00.
-          </p>
-        </div>
-        <button onClick={() => navigate("problems")}>Разобрать проблемы →</button>
-      </section>
-
       {news.length > 0 && (
         <div className="news-feed">
           <div className="news-feed-head"><span className="recommend-badge">📢 Новости команды</span></div>
@@ -1440,6 +1436,18 @@ function Overview({
           </div>
         </div>
       )}
+
+      <section className="ai-brief">
+        <span className="ai-mark">AI</span>
+        <div>
+          <strong>Сводка за 30 секунд</strong>
+          <p>
+            Анна Сидорова лидирует по выручке. 4 лида требуют внимания, а конверсия
+            Авито выросла на 6,2%. Пик входящих сегодня ожидается в 16:00.
+          </p>
+        </div>
+        <button onClick={() => navigate("problems")}>Разобрать проблемы →</button>
+      </section>
 
       <div className="kpi-grid">
         <KpiCard
@@ -1481,6 +1489,14 @@ function Overview({
           accent="#ff6e91"
           icon="!"
           onClick={() => setMetricModal("problems")}
+        />
+        <KpiCard
+          label="Баланс"
+          value="2 137 400 ₽"
+          meta="доступно к выводу"
+          accent="#f7c900"
+          icon="₽"
+          onClick={() => setMetricModal("balance")}
         />
       </div>
 
@@ -2068,9 +2084,10 @@ function InsightsPanel({ showToast }: { showToast: (message: string) => void }) 
   const [quizPick, setQuizPick] = useState<string | null>(null);
   const [showDesc, setShowDesc] = useState(false);
   const [openInsight, setOpenInsight] = useState<string | null>(null);
+  const [insights, setInsights] = useState(AI_INSIGHTS);
   const [events, setEvents] = useState(IMPORTANT_EVENTS);
   const [lifehacks, setLifehacks] = useState(LIFEHACKS);
-  const [quickEntry, setQuickEntry] = useState<"event" | "lifehack" | null>(null);
+  const [quickEntry, setQuickEntry] = useState<"event" | "lifehack" | "insight" | null>(null);
   const [quickText, setQuickText] = useState("");
 
   const prize = REWARD_PRIZES.find((item) => item.name === target) ?? REWARD_PRIZES[1];
@@ -2159,7 +2176,7 @@ function InsightsPanel({ showToast }: { showToast: (message: string) => void }) 
         <div className="ai-insights">
           <span className="recommend-badge">AI-инсайды · на основе анализа статистики</span>
           <div className="ai-list">
-            {AI_INSIGHTS.map((insight) => (
+            {insights.map((insight) => (
               <button
                 key={insight.title}
                 className={`ai-item ${openInsight === insight.title ? "is-open" : ""}`}
@@ -2171,26 +2188,27 @@ function InsightsPanel({ showToast }: { showToast: (message: string) => void }) 
                   <p>{insight.text}</p>
                   {openInsight === insight.title && <p className="ai-detail">{insight.detail}</p>}
                 </div>
+                <span className="ai-delete" role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); setInsights((current) => current.filter((item) => item.title !== insight.title)); }}>×</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="quick-insight-actions"><button className="secondary-button" onClick={() => setQuickEntry("event")}>＋ Добавить важное событие</button><button className="secondary-button" onClick={() => setQuickEntry("lifehack")}>＋ Добавить лайфхак</button></div>
-      {quickEntry && <div className="quick-entry"><input autoFocus value={quickText} onChange={(event) => setQuickText(event.target.value)} placeholder={quickEntry === "event" ? "Например: завтра стоп по Т-Банку" : "Например: закрепляйте видео-разъяснение"} /><button className="primary-button" onClick={() => { const text = quickText.trim(); if (!text) return; if (quickEntry === "event") setEvents((current) => [{ date: "Новое", text }, ...current]); else setLifehacks((current) => [text, ...current]); setQuickText(""); setQuickEntry(null); showToast("Добавлено в инсайты"); }}>Добавить</button><button className="text-button" onClick={() => setQuickEntry(null)}>Отмена</button></div>}
+      <div className="quick-insight-actions"><button className="secondary-button" onClick={() => setQuickEntry("event")}>＋ Добавить важное событие</button><button className="secondary-button" onClick={() => setQuickEntry("lifehack")}>＋ Добавить лайфхак</button><button className="secondary-button" onClick={() => setQuickEntry("insight")}>＋ Добавить AI-инсайт</button></div>
+      {quickEntry && <div className="quick-entry"><input autoFocus value={quickText} onChange={(event) => setQuickText(event.target.value)} placeholder={quickEntry === "event" ? "Например: завтра стоп по Т-Банку" : quickEntry === "lifehack" ? "Например: закрепляйте видео-разъяснение" : "Например: Пик заявок · конверсия выше после 16:00"} /><button className="primary-button" onClick={() => { const text = quickText.trim(); if (!text) return; if (quickEntry === "event") setEvents((current) => [{ date: "Новое", text }, ...current]); else if (quickEntry === "lifehack") setLifehacks((current) => [text, ...current]); else setInsights((current) => [{ icon: "✦", title: text.split("·")[0].trim(), text, detail: "Добавлено вручную администратором." }, ...current]); setQuickText(""); setQuickEntry(null); showToast("Добавлено в инсайты"); }}>Добавить</button><button className="text-button" onClick={() => setQuickEntry(null)}>Отмена</button></div>}
       <div className="insights-bottom">
         <Panel title="Важные события" subtitle="Что нужно учесть в работе">
           <div className="events-list">
             {events.map((event) => (
-              <div key={event.text} className="event-row"><span className="event-date">{event.date}</span><p>{event.text}</p></div>
+              <div key={event.text} className="event-row"><span className="event-date">{event.date}</span><p>{event.text}</p><button className="row-action" onClick={() => { if (window.confirm("Удалить это событие?")) { setEvents((current) => current.filter((item) => item.text !== event.text)); showToast("Событие удалено"); } }} aria-label="Удалить событие">×</button></div>
             ))}
           </div>
         </Panel>
         <Panel title="Лайфхаки" subtitle="Как работать эффективнее">
           <div className="lifehack-list">
             {lifehacks.map((tip) => (
-              <div key={tip} className="lifehack-row"><span>◆</span><p>{tip}</p></div>
+              <div key={tip} className="lifehack-row"><span>◆</span><p>{tip}</p><button className="row-action" onClick={() => { if (window.confirm("Удалить этот лайфхак?")) { setLifehacks((current) => current.filter((item) => item !== tip)); showToast("Лайфхак удалён"); } }} aria-label="Удалить лайфхак">×</button></div>
             ))}
           </div>
         </Panel>
@@ -2745,6 +2763,7 @@ const MEDIA_PROBLEMS = [
 
 function StatsView({ kind, showToast }: { kind: string; showToast: (message: string) => void }) {
   const isMedia = kind === "Медиа";
+  const [selectedResource, setSelectedResource] = useState<MediaResource | null>(null);
 
   if (isMedia) {
     const totalReach = MEDIA_RESOURCES.reduce((sum, item) => sum + item.reach, 0);
@@ -2766,34 +2785,11 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
           <div className="media-kpi"><span>Затраты</span><strong className="pink">{money(totalSpend)}</strong><small>на медиа</small></div>
           <div className="media-kpi"><span>ROI</span><strong className={roi >= 100 ? "lime" : "pink"}>{roi}%</strong><small>окупаемость</small></div>
         </div>
-        <div className="weak-point">
-          <span className="weak-icon">!</span>
-          <div><strong>Слабая точка: «{weak.name}»</strong><p>ROI {Math.round((weak.revenue / weak.spend) * 100)}% — ниже остальных ресурсов. Стоит пересмотреть креативы или бюджет.</p></div>
-        </div>
-        <ProblemsAnalysis items={MEDIA_PROBLEMS} />
-        <Panel title="Ресурсы · Медиа" subtitle="Полная выписка по каждому ресурсу">
-          <div className="table-scroll">
-            <table>
-              <thead><tr><th>Ресурс</th><th>Подписчики</th><th>Охват</th><th>Лиды</th><th>CPL</th><th>Затраты</th><th>Доход</th><th>ROI</th></tr></thead>
-              <tbody>
-                {MEDIA_RESOURCES.map((item) => {
-                  const itemRoi = Math.round((item.revenue / item.spend) * 100);
-                  return (
-                    <tr key={item.id} className={item.id === weak.id ? "row-weak" : ""}>
-                      <td><strong>{item.name}</strong></td>
-                      <td data-label="Подписчики">{compact(item.followers)}</td>
-                      <td data-label="Охват">{compact(item.reach)}</td>
-                      <td data-label="Лиды">{item.leads}</td>
-                      <td data-label="CPL">{money(Math.round(item.spend / item.leads))}</td>
-                      <td data-label="Затраты" className="muted">{money(item.spend)}</td>
-                      <td data-label="Доход">{money(item.revenue)}</td>
-                      <td data-label="ROI"><span className={itemRoi >= 100 ? "roi-good" : "roi-bad"}>{itemRoi}%</span></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <Panel title="Медиа по командам" subtitle="Нажмите на карточку для полной выписки">
+          <div className="team-stat-grid media-team-grid">
+            {MEDIA_RESOURCES.map((item) => <button key={item.id} className="team-stat-card" onClick={() => setSelectedResource(item)}><strong>Медиа · {item.name}</strong><span>Аудитория: {compact(item.followers)}</span><span>Охват: {compact(item.reach)}</span><span>Привлечено лидов: {item.leads}</span><p>Доход: {money(item.revenue)}</p><small>ROI: {Math.round((item.revenue / Math.max(1, item.spend)) * 100)}%</small></button>)}
           </div>
+          {selectedResource && <div className="team-detail-panel"><div className="section-title"><h3>Медиа · {selectedResource.name}</h3><button className="row-action" onClick={() => setSelectedResource(null)}>×</button></div><div className="team-detail-list"><article><span>Аудитория: {compact(selectedResource.followers)}</span><span>Охват: {compact(selectedResource.reach)}</span><span>Привлечено лидов: {selectedResource.leads}</span><span>CPL: {money(Math.round(selectedResource.spend / Math.max(1, selectedResource.leads)))}</span><span>Затраты: {money(selectedResource.spend)} · Доход: {money(selectedResource.revenue)}</span><b>ROI: {Math.round((selectedResource.revenue / Math.max(1, selectedResource.spend)) * 100)}%</b></article></div></div>}
         </Panel>
       </>
     );
@@ -2822,18 +2818,11 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
         <div className="media-kpi"><span>Средняя конверсия</span><strong>{avgConv}%</strong><small>по командам</small></div>
       </div>
 
-      <div className="weak-point">
-        <span className="weak-icon">!</span>
-        <div><strong>Слабая точка: команда «{weak.team}»</strong><p>Конверсия {weak.conversion}% — ниже средней. Тимлид {weak.lead}. Рекомендуется разбор трафика и качества лидов.</p></div>
-      </div>
-
-      <ProblemsAnalysis items={RKO_PROBLEMS} />
-
       <Panel title="Команды · РКО" subtitle="Нажмите на карточку для подробной информации">
         <div className="team-stat-grid">
           {TEAM_STATS.map((team) => <button className={`team-stat-card ${team.team === weak.team ? "is-weak" : ""}`} key={team.team} onClick={() => setSelectedTeam(team)}><strong>{team.team}</strong><span>Тимлид: {team.lead}</span><div><b>Лиды: {team.leads}</b><b>Апрувы: {team.approved}</b></div><p>Выручка: {money(team.revenue)}</p><p>Прибыль: <em>{money(team.revenue - team.payout)}</em></p><small>Конверсия: {team.conversion}%</small></button>)}
         </div>
-        <details className="team-detail-panel"><summary>Открыть подробную выписку по командам</summary><div className="team-detail-list">{TEAM_STATS.map((team) => <article key={`${team.team}-detail`}><strong>{team.team}</strong><span>Тимлид: {team.lead}</span><span>Лиды: {team.leads} · Апрувы: {team.approved}</span><span>Выручка: {money(team.revenue)} · Выплаты: {money(team.payout)}</span><b>Прибыль: {money(team.revenue - team.payout)} · Конверсия: {team.conversion}%</b></article>)}</div></details>
+        {selectedTeam && <div className="team-detail-panel"><div className="section-title"><h3>{selectedTeam.team}</h3><button className="row-action" onClick={() => setSelectedTeam(null)}>×</button></div><div className="team-detail-list"><article><strong>Тимлид: {selectedTeam.lead}</strong><span>Лиды: {selectedTeam.leads} · Апрувы: {selectedTeam.approved}</span><span>Выручка: {money(selectedTeam.revenue)} · Выплаты: {money(selectedTeam.payout)}</span><b>Прибыль: {money(selectedTeam.revenue - selectedTeam.payout)} · Конверсия: {selectedTeam.conversion}%</b><span>Здесь можно будет открыть список участников и лидов команды.</span></article></div></div>}
       </Panel>
     </>
   );
@@ -3018,11 +3007,11 @@ function ModuleView({ type, showToast }: { type: ModuleViewType; showToast: (mes
           <h1>{content.title}</h1>
           <p>{content.description}</p>
         </div>
-        <span className="module-status"><i />{content.status}</span>
+        {!isInfo && <span className="module-status"><i />{content.status}</span>}
       </div>
 
       <div className="module-kpis">
-        {content.stats.map((stat) => (
+        {content.stats.filter((stat) => !isInfo || !["Обновлено", "Прочитано"].includes(stat.label)).map((stat) => (
           <article key={stat.label}>
             <span>{stat.label}</span>
             <strong>{stat.value}</strong>
@@ -3039,7 +3028,7 @@ function ModuleView({ type, showToast }: { type: ModuleViewType; showToast: (mes
                 <button key={row.title} className="module-row-btn" onClick={() => { window.open("https://t.me/mk_platform", "_blank", "noopener,noreferrer"); showToast(`«${row.title}» открывается в Telegram-группе команды`); }}>
                   <span className="module-index">{String(index + 1).padStart(2, "0")}</span>
                   <div><strong>{row.title}</strong><small>{row.meta}</small></div>
-                  <div className="module-value"><span className="tg-link">🔗 Telegram</span><small>{row.state}</small></div>
+                  <div className="module-value"><span className="tg-link">🔗 Telegram</span></div>
                 </button>
               ) : (
                 <article key={row.title}>
@@ -3050,7 +3039,7 @@ function ModuleView({ type, showToast }: { type: ModuleViewType; showToast: (mes
               )
             ))}
           </div>
-          {isInfo && <div className="info-note">Материалы открываются в закрытой Telegram-группе — так их сложнее скопировать, чем с сайта.</div>}
+          {isInfo && <div className="info-note">Все материалы открываются по ссылке в закрытой Telegram-группе.</div>}
         </Panel>
 
         <Panel title={content.noteTitle} subtitle="Актуально на текущий период" className="module-notes-panel">
@@ -3062,6 +3051,7 @@ function ModuleView({ type, showToast }: { type: ModuleViewType; showToast: (mes
               </article>
             ))}
           </div>
+          {isInfo && <button className="primary-button" onClick={() => { window.open("https://t.me/mk_platform", "_blank", "noopener,noreferrer"); showToast("Открыта пошаговая стратегия в Telegram"); }}>Открыть пошаговую стратегию в Telegram</button>}
         </Panel>
       </div>
     </>
@@ -3175,8 +3165,9 @@ function OffersView({ setMetricModal }: { setMetricModal: (type: string) => void
   );
 }
 
-function BlogsView() {
+function BlogsView({ showToast }: { showToast: (message: string) => void }) {
   const [filter, setFilter] = useState("Все направления");
+  const [openRole, setOpenRole] = useState<string | null>(null);
   const [tasks, setTasks] = useState([
     { id: 1, owner: "Тимлид лидогенерации", direction: "Лидогенерация", title: "Сверить источники за неделю", due: "Сегодня", status: "В работе" },
     { id: 2, owner: "Тимлид РКО", direction: "РКО", title: "Обновить ставки банков", due: "Завтра", status: "Новая" },
@@ -3187,6 +3178,7 @@ function BlogsView() {
   const directions = ["Все направления", "Лидогенерация", "РКО", "Беттинг", "МФО", "Операционка"];
   const visible = tasks.filter((task) => filter === "Все направления" || task.direction === filter);
   const toggle = (id: number) => setTasks((current) => current.map((task) => task.id === id ? { ...task, status: task.status === "Завершена" ? "В работе" : "Завершена" } : task));
+  const removeTask = (id: number) => { if (!window.confirm("Точно хотите удалить?")) return; setTasks((current) => current.filter((task) => task.id !== id)); fetch("/api/ops", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "task", id }) }).catch(() => {}); };
   useEffect(() => {
     let cancelled = false;
     fetch("/api/ops").then((response) => response.ok ? response.json() : Promise.reject()).then((payload: { tasks?: { id: number; title: string; owner: string; direction: string; due: string; status: string }[] }) => {
@@ -3196,9 +3188,10 @@ function BlogsView() {
   }, []);
   return (
     <>
-      <div className="page-title compact-title"><div><span className="eyebrow">Рабочий центр</span><h1>Блоги и задачи</h1><p>Тимлиды ведут свои направления, а ассистент собирает задачи и статусы в одном месте.</p></div><button className="primary-button" onClick={() => setTasks((current) => [{ id: Date.now(), owner: "Новая задача", direction: "Операционка", title: "Новая задача без названия", due: "Сегодня", status: "Новая" }, ...current])}>＋ Добавить задачу</button></div>
-      <div className="blog-role-grid">{["Тимлид лидогенерации", "Тимлид РКО", "Тимлид беттинга", "Тимлид МФО", "Ассистент"].map((role) => <article key={role}><span className="blog-role-icon">{role === "Ассистент" ? "A" : "T"}</span><div><strong>{role}</strong><small>{tasks.filter((task) => task.owner === role).length} задач · отчёт раз в день</small></div><button className="text-button">Открыть →</button></article>)}</div>
-      <Panel title="Трекер задач" subtitle="Отметьте выполнение — прогресс сохраняется в текущей сессии"><div className="blog-filters">{directions.map((item) => <button className={filter === item ? "is-active" : ""} key={item} onClick={() => setFilter(item)}>{item}</button>)}</div><div className="task-list">{visible.map((task) => <article className={`task-row ${task.status === "Завершена" ? "is-done" : ""}`} key={task.id}><button className="task-check" onClick={() => toggle(task.id)}>{task.status === "Завершена" ? "✓" : ""}</button><div><strong>{task.title}</strong><small>{task.owner} · {task.direction}</small></div><span>{task.due}</span><b>{task.status}</b></article>)}</div></Panel>
+      <div className="page-title compact-title"><div><span className="eyebrow">Рабочий центр</span><h1>Блоки и задачи</h1><p>Тимлиды ведут свои направления, а ассистент собирает задачи и статусы в одном месте.</p></div><button className="primary-button" onClick={async () => { const draft = { title: "Новая задача без названия", owner: "Ассистент", direction: "Операционка", due: "Сегодня", status: "Новая" }; setTasks((current) => [{ id: Date.now(), ...draft }, ...current]); await fetch("/api/ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "task", ...draft }) }).catch(() => {}); showToast("Задача добавлена"); }}>＋ Добавить задачу</button></div>
+      <div className="blog-role-grid">{["Тимлид лидогенерации", "Тимлид РКО", "Тимлид беттинга", "Тимлид МФО", "Ассистент"].map((role) => <article key={role}><span className="blog-role-icon">{role === "Ассистент" ? "A" : "T"}</span><div><strong>{role}</strong><small>{tasks.filter((task) => task.owner === role).length} задач · отчёт раз в день</small></div><button className="text-button" onClick={() => setOpenRole((current) => current === role ? null : role)}>Открыть →</button></article>)}</div>
+      {openRole && <Panel title={openRole} subtitle="Задачи и текущий статус"><div className="task-list">{tasks.filter((task) => task.owner === openRole).map((task) => <div className="task-row" key={task.id}><strong>{task.title}</strong><span>{task.status}</span><small>{task.due}</small></div>)}</div></Panel>}
+      <Panel title="Трекер задач" subtitle="Отметьте выполнение — прогресс сохраняется в текущей сессии"><div className="blog-filters">{directions.map((item) => <button className={filter === item ? "is-active" : ""} key={item} onClick={() => setFilter(item)}>{item}</button>)}</div><div className="task-list">{visible.map((task) => <article className={`task-row ${task.status === "Завершена" ? "is-done" : ""}`} key={task.id}><button className="task-check" onClick={() => { const next = task.status === "Завершена" ? "В работе" : "Завершена"; toggle(task.id); fetch("/api/ops", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "task", id: task.id, status: next }) }).catch(() => {}); }}>{task.status === "Завершена" ? "✓" : ""}</button><div><strong>{task.title}</strong><small>{task.owner} · {task.direction}</small></div><span>{task.due}</span><b>{task.status}</b><button className="row-action" onClick={() => removeTask(task.id)} aria-label="Удалить задачу">×</button></article>)}</div></Panel>
       <Panel title="Ежедневный отчёт" subtitle="Что тимлид должен подгрузить по итогам дня"><div className="blog-report-grid"><div><span>Выполненные задачи</span><strong>{tasks.filter((task) => task.status === "Завершена").length}</strong></div><div><span>В работе</span><strong>{tasks.filter((task) => task.status === "В работе").length}</strong></div><div><span>Новые блокеры</span><strong>2</strong></div><div><span>Готовность</span><strong>{Math.round((tasks.filter((task) => task.status === "Завершена").length / tasks.length) * 100)}%</strong></div></div></Panel>
     </>
   );
@@ -3840,25 +3833,22 @@ function AccessView({
     { generated: "LEAD-SILVER", role: "Lead Generator", used: "4 / 20", expires: "15.08.2026" },
     { generated: "ADMIN-ONE", role: "Администратор", used: "1 / 2", expires: "01.09.2026" },
   ]);
+  const [showKeyForm, setShowKeyForm] = useState(false);
+  const [keyName, setKeyName] = useState("");
+  const [keyRole, setKeyRole] = useState("Lead Generator");
+  const [keyTeam, setKeyTeam] = useState("Excellent");
   return (
     <>
       <div className="page-title compact-title">
         <div><span className="eyebrow">Premium Private</span><h1>Админка</h1><p>Ключи регистрации, доступы участников и журнал входов.</p></div>
-        <button className="primary-button" onClick={() => { const generated = `MK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; setKeys((current) => [{ generated, role: "Lead Generator", used: "0 / 20", expires: "31.08.2026" }, ...current]); }}>＋ Создать ключ</button>
+        <button className="primary-button" onClick={() => setShowKeyForm((value) => !value)}>＋ Создать ключ</button>
       </div>
       <PayoutCaps />
+      {showKeyForm && <div className="key-create-form"><label><span>Имя</span><input value={keyName} onChange={(event) => setKeyName(event.target.value)} placeholder="Имя участника" /></label><label><span>Роль</span><select value={keyRole} onChange={(event) => setKeyRole(event.target.value)}><option>Lead Generator</option><option>Team Lead</option><option>Leader</option><option>Influencer</option><option>Администратор</option></select></label><label><span>Команда</span><select value={keyTeam} onChange={(event) => setKeyTeam(event.target.value)}><option>Excellent</option><option>Северная</option><option>Вектор</option><option>Blogsphere</option></select></label><button className="primary-button" onClick={() => { const generated = `MK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; setKeys((current) => [{ generated, role: `${keyRole} · ${keyName || "Новый участник"} · ${keyTeam}`, used: "0 / 1", expires: "Без ограничения" }, ...current]); setKeyName(""); setShowKeyForm(false); }}>Создать ключ</button></div>}
       <div className="two-columns access-no-policy">
         <Panel title="Ключи доступа" subtitle="Для регистрации новых участников">
           <div className="access-keys">
-            {keys.map((key) => <div key={key.generated}><code>{key.generated}</code><span><strong>{key.role}</strong><small>Использовано {key.used} · до {key.expires}</small></span><button onClick={() => navigator.clipboard?.writeText(key.generated)}>Копировать</button><button className="row-action" aria-label={`Удалить ключ ${key.generated}`} onClick={() => setKeys((current) => current.filter((item) => item.generated !== key.generated))}>×</button></div>)}
-          </div>
-        </Panel>
-        <Panel title="Правила использования" subtitle="Ограничения по времени">
-          <div className="policy">
-            <label><span><strong>Рабочие часы</strong><small>Доступ с 08:00 до 23:00</small></span><input type="checkbox" defaultChecked /></label>
-            <label><span><strong>Автовыход</strong><small>После 45 минут бездействия</small></span><input type="checkbox" defaultChecked /></label>
-            <label><span><strong>Доступ в выходные</strong><small>Для менеджеров и лидогенераторов</small></span><input type="checkbox" /></label>
-            <button className="secondary-button">Редактировать условия</button>
+            {keys.map((key) => <div key={key.generated}><code>{key.generated}</code><span><strong>{key.role}</strong><small>Использовано {key.used} · до {key.expires}</small></span><button onClick={() => navigator.clipboard?.writeText(key.generated)}>Копировать</button><button className="row-action" aria-label={`Удалить ключ ${key.generated}`} onClick={() => { if (window.confirm("Точно хотите удалить?")) setKeys((current) => current.filter((item) => item.generated !== key.generated)); }}>×</button></div>)}
           </div>
         </Panel>
       </div>
@@ -4496,6 +4486,7 @@ function MetricModal({
     users: ["Пользователи", "Нажмите, чтобы открыть личную статистику"],
     sessions: ["Входы сегодня", "Время входа и продолжительность сессии"],
     problems: ["Проблемные лиды", "Нажмите на лид — откроется карточка с деталями"],
+    balance: ["Баланс", "Доступные к выводу начисления и выплаты"],
     invite: ["Пригласить пользователя", "Роль, команда и срок доступа"],
     key: ["Новый ключ доступа", "Создайте код для регистрации"],
     offer: ["Новый оффер", "Категория, выплата и стоимость ЦД"],
@@ -4522,13 +4513,21 @@ function MetricModal({
       <div className="modal">
         {type === "conversion" && <div className="conversion-explainer"><strong>Как считается конверсия</strong><p>У каждого канала свой расчёт: успешные лиды ÷ все лиды канала × 100. Поэтому проценты не складываются в 100%.</p><small>Пример: 18 успешных из 58 лидов Авито = 31,0%.</small></div>}
         <div className="modal-head"><div><h2>{title}</h2><p>{subtitle}</p></div><button onClick={onClose}>×</button></div>
-        {type === "leads" && <div className="metric-list">{[...users].sort((a, b) => b.leads - a.leads).map((user, index) => <button key={user.id} onClick={() => openUser(user.id)}><span className="rank">{index + 1}</span><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>{user.team}</small></span><b>{user.leads} лидов</b><i>›</i></button>)}</div>}
+        {type === "leads" && <div className="metric-list leaderboard-list">{[...users].sort((a, b) => b.leads - a.leads).map((user, index) => <button key={user.id} className={`leaderboard-row place-${index + 1}`} onClick={() => openUser(user.id)}><span className="rank">{index + 1}</span><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>{user.team}</small></span><b>{user.leads} лидов</b><i>›</i></button>)}</div>}
         {type === "revenue" && <div className="metric-list sources">{sourceStats.map((source, index) => <button key={source.name} onClick={() => drill(`source:${source.name}`)}><span className="rank">{index + 1}</span><i style={{ background: source.color }} /><span><strong>{source.name}</strong><small>{source.leads} {leadWord(source.leads)}</small></span><b>{money(source.revenue)}</b><i className="chev">›</i></button>)}</div>}
         {(statusMatch || sourceMatch) && <div className="metric-list">{(statusMatch ? statusLeads : sourceLeads).map((lead) => <button key={lead.id} onClick={() => openLead(lead.id)}><Avatar initials={lead.initials} /><span><strong>{lead.client}</strong><small>{lead.direction ?? "—"} · {lead.source}</small></span><span className="metric-money"><b>{money(leadBalance(lead))}</b><small>потенциал {money(leadForecast(lead))}</small></span><i>›</i></button>)}{!(statusMatch ? statusLeads : sourceLeads).length && <div className="empty-state">Нет лидов.</div>}</div>}
         {type === "conversion" && <div className="metric-list sources">{sourceStats.sort((a, b) => b.conversion - a.conversion).map((source, index) => <div key={source.name}><span className="rank">{index + 1}</span><i style={{ background: source.color }} /><span><strong>{source.name}</strong><small>{source.leads} лидов</small></span><div className="progress"><span style={{ width: `${source.conversion * 2.5}%`, background: source.color }} /></div><b>{source.conversion}%</b></div>)}</div>}
         {type === "users" && <div className="metric-list">{users.map((user) => <button key={user.id} onClick={() => openUser(user.id)}><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>{user.role} · {user.team}</small></span><span className={`user-state ${user.status === "Активен" ? "is-active" : ""}`}>● {user.status}</span><i>›</i></button>)}</div>}
         {type === "sessions" && <div className="metric-list">{users.filter((user) => user.lastLogin.startsWith("Сегодня")).map((user) => <button key={user.id} onClick={() => openUser(user.id)}><Avatar initials={user.initials} /><span><strong>{user.name}</strong><small>Вход: {user.lastLogin.replace("Сегодня, ", "")}</small></span><b>{user.session}</b><i>›</i></button>)}</div>}
         {type === "problems" && <div className="metric-list">{leads.filter((lead) => lead.issue).map((lead) => <button key={lead.id} onClick={() => openLead(lead.id)}><Avatar initials={lead.initials} /><span><strong>{lead.client}</strong><small>{lead.issue} · {lead.manager}</small></span><span className="metric-money"><b className="pink">теряем {money(leadForecast(lead) - leadBalance(lead))}</b><small>потенциал {money(leadForecast(lead))}</small></span><i>›</i></button>)}</div>}
+        {type === "balance" && (
+          <div className="balance-modal-summary">
+            <div><span>Доступно к выводу</span><strong>2 137 400 ₽</strong></div>
+            <div><span>Начислено за период</span><b>2 881 600 ₽</b></div>
+            <div><span>Выплачено</span><b>744 200 ₽</b></div>
+            <button className="primary-button" onClick={() => { onClose(); showToast("Раздел выплат откроется в бухгалтерском учёте"); }}>Открыть выплаты</button>
+          </div>
+        )}
         {productMatch && (
           <>
             {productBySource.length > 0 && (

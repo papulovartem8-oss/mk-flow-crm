@@ -9007,3 +9007,52 @@ body {
 .resource-add-form { margin: 14px 0 18px; padding: 18px; border: 1px solid rgba(216,178,61,.3); border-radius: 16px; background: rgba(216,178,61,.06); }
 .resource-add-form > p { margin: 6px 0 14px; color: #a9adb5; font-size: 13px; line-height: 1.5; }
 .resource-add-actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+.balance-modal-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.period-control-wrap {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.period-description {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.balance-modal-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line, rgba(255,255,255,.12));
+  border-radius: 14px;
+  background: rgba(255,255,255,.035);
+}
+
+.balance-modal-summary strong {
+  color: #f7c900;
+  font-size: 1.35rem;
+}
+
+.balance-modal-summary .primary-button {
+  margin-top: 8px;
+}
+.ai-item { position: relative; }
+.ai-delete { position: absolute; top: 10px; right: 12px; color: #9aa0aa; font-size: 18px; opacity: .7; cursor: pointer; }
+.ai-delete:hover { color: #ff6e91; opacity: 1; }
+.event-row, .lifehack-row { position: relative; padding-right: 34px; }
+.event-row .row-action, .lifehack-row .row-action { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+.leaderboard-list { max-height: min(60vh, 520px); overflow-y: auto; padding-right: 4px; }
+.leaderboard-row.place-1 { border: 1px solid rgba(247,201,0,.95); box-shadow: 0 0 0 1px rgba(247,201,0,.18), 0 0 18px rgba(247,201,0,.16); }
+.leaderboard-row.place-2 { border: 1px solid rgba(192,192,192,.8); box-shadow: 0 0 0 1px rgba(192,192,192,.12); }
+.leaderboard-row.place-3 { border: 1px solid rgba(205,127,50,.85); box-shadow: 0 0 0 1px rgba(205,127,50,.12); }
+.key-create-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 12px; align-items: end; margin-bottom: 18px; padding: 16px; border: 1px solid rgba(247,201,0,.3); border-radius: 16px; background: rgba(247,201,0,.06); }
+.key-create-form label { display: grid; gap: 6px; }
+.key-create-form label span { color: var(--muted); font-size: 12px; }
+.key-create-form input, .key-create-form select { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-2); color: var(--text); }
+@media (max-width: 700px) { .key-create-form { grid-template-columns: 1fr; } }
