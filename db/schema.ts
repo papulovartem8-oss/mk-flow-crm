@@ -111,15 +111,6 @@ export const accessKeys = sqliteTable("access_keys", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const accessSessions = sqliteTable("access_sessions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  tokenHash: text("token_hash").notNull().unique(),
-  role: text("role").notNull(),
-  label: text("label").notNull(),
-  expiresAt: text("expires_at").notNull(),
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
-
 export const integrations = sqliteTable("integrations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   provider: text("provider").notNull().unique(),
@@ -128,6 +119,15 @@ export const integrations = sqliteTable("integrations", {
   lastSyncAt: text("last_sync_at"),
   lastSyncStatus: text("last_sync_status"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Лиды CRM целиком как JSON — модель фронтенда богаче нормализованной
+// таблицы `leads`, поэтому храним объект в одной колонке и не теряем поля
+// (направление, трафик, офферы со статусами и т.д.). id задаёт фронтенд.
+export const crmLeads = sqliteTable("crm_leads", {
+  id: integer("id").primaryKey(),
+  data: text("data").notNull(),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

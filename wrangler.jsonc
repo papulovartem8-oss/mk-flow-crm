@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mk-platform",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2024-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mk-platform-db",
+      "database_id": "aa06c78d-b7af-4fec-b9e3-02e58cb41193",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  }
+}
