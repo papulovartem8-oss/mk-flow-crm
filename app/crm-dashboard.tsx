@@ -67,7 +67,7 @@ type NavGroup = {
 };
 
 type LeadStatus = "Новый" | "В работе" | "Успешно" | "Отказ";
-type Period = "День" | "Неделя" | "Месяц";
+type Period = "За всё время" | "День" | "Неделя" | "Месяц";
 
 // Направления офферов (ТЗ) и статусы оффера по лиду.
 type Direction = "РКО" | "Беттинг" | "МФО";
@@ -781,7 +781,7 @@ function PeriodControl({
 }) {
   return (
     <div className="period-control">
-      {(["День", "Неделя", "Месяц"] as Period[]).map((item) => (
+      {(["За всё время", "День", "Неделя", "Месяц"] as Period[]).map((item) => (
         <button
           className={period === item ? "active" : ""}
           key={item}
@@ -903,7 +903,7 @@ const INITIAL_NEWS: NewsItem[] = [
 export function CrmDashboard() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [view, setView] = useState<View>("overview");
-  const [period, setPeriod] = useState<Period>("Месяц");
+  const [period, setPeriod] = useState<Period>("За всё время");
   const [leads, setLeads] = useState<Lead[]>(() => INITIAL_LEADS.map(normalizeLead));
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [reports, setReports] = useState<TeamReport[]>(INITIAL_REPORTS);
@@ -1192,6 +1192,8 @@ export function CrmDashboard() {
               users={users}
               leads={leads}
               news={news}
+              canManageNews={agent.role === "admin" || agent.role === "leader" || agent.role === "teamlead"}
+              deleteNews={(id) => setNews((current) => current.filter((item) => item.id !== id))}
               setMetricModal={setMetricModal}
               openUser={openUser}
               navigate={navigate}
@@ -1344,6 +1346,8 @@ function Overview({
   users,
   leads,
   news,
+  canManageNews,
+  deleteNews,
   setMetricModal,
   openUser,
   navigate,
@@ -1353,11 +1357,14 @@ function Overview({
   users: User[];
   leads: Lead[];
   news: NewsItem[];
+  canManageNews: boolean;
+  deleteNews: (id: number) => void;
   setMetricModal: (type: string) => void;
   openUser: (id: number) => void;
   navigate: (view: View) => void;
 }) {
   const periodData = {
+    "За всё время": { leads: "1 248", revenue: "17 766 247 ₽", conversion: "31,8%", delta: "+24,2%" },
     День: { leads: "19", revenue: "184 200 ₽", conversion: "28,6%", delta: "+12,4%" },
     Неделя: { leads: "86", revenue: "742 800 ₽", conversion: "26,9%", delta: "+8,1%" },
     Месяц: { leads: "208", revenue: "2 881 600 ₽", conversion: "27,4%", delta: "+18,6%" },
@@ -1395,7 +1402,7 @@ function Overview({
           <div className="news-list">
             {news.slice(0, 3).map((item) => (
               <div key={item.id} className="news-item">
-                <div className="news-item-head"><strong>{item.title}</strong><span className="news-meta">{item.author} · {item.role} · {item.date}</span></div>
+                <div className="news-item-head"><strong>{item.title}</strong><span className="news-meta">{item.author} · {item.role} · {item.date} {canManageNews && <button className="news-delete" onClick={() => deleteNews(item.id)} aria-label="Удалить новость">×</button>}</span></div>
                 <p>{item.text}</p>
               </div>
             ))}
@@ -1435,14 +1442,6 @@ function Overview({
           accent="#eab308"
           icon="◎"
           onClick={() => setMetricModal("users")}
-        />
-        <KpiCard
-          label="Входов сегодня"
-          value="42"
-          meta="Средняя сессия 2 ч 18 мин"
-          accent="#f59e0b"
-          icon="↗"
-          onClick={() => setMetricModal("sessions")}
         />
         <KpiCard
           label="Проблемные лиды"
@@ -2250,10 +2249,11 @@ function StructureView({
   navigate: (view: View) => void;
 }) {
   const trend = {
+    "За всё время": [46, 58, 53, 70, 82, 91, 100],
     День: [22, 38, 31, 52, 47, 68, 74],
     Неделя: [38, 51, 46, 67, 72, 64, 88],
     Месяц: [31, 42, 55, 48, 69, 77, 91],
-  }[period];
+  }[period] ?? [46, 58, 53, 70, 82, 91, 100];
   const pipeline = [
     {
       index: "01",
@@ -3078,25 +3078,28 @@ function OffersView({ setMetricModal }: { setMetricModal: (type: string) => void
     { name: "HR", count: 6, avg: 24500, color: "#5eead4" },
   ];
   const catalog = [
-    { bank: "Т-Банк", category: "РКО", offer: "РКО для ИП", payout: 38500, cd: 2400, net: 36100, status: "Активен", recommended: true },
-    { bank: "Альфа-Банк", category: "РКО", offer: "РКО «Первый счёт»", payout: 32000, cd: 2100, net: 29900, status: "Активен", recommended: true },
-    { bank: "ВТБ", category: "Дебет", offer: "Карта для жизни", payout: 6800, cd: 900, net: 5900, status: "Активен", recommended: false },
-    { bank: "Газпромбанк", category: "Дебет", offer: "Умная карта", payout: 7200, cd: 1100, net: 6100, status: "Активен", recommended: true },
-    { bank: "ОТП Банк", category: "Дебет", offer: "ОТП Карта", payout: 4600, cd: 700, net: 3900, status: "Активен", recommended: false },
-    { bank: "Уралсиб", category: "РКО", offer: "РКО «Стандарт»", payout: 18500, cd: 1400, net: 17100, status: "Активен", recommended: false },
-    { bank: "Точка", category: "Регбиз", offer: "Регистрация ИП", payout: 14800, cd: 500, net: 14300, status: "Пауза", recommended: false },
-    { bank: "Займер", category: "МФО", offer: "Первый займ", payout: 5200, cd: 400, net: 4800, status: "Активен", recommended: false },
-    { bank: "1xStavka", category: "Беттинг", offer: "Первый депозит", payout: 14200, cd: 1800, net: 12400, status: "Активен", recommended: true },
-    { bank: "Fonbet", category: "Беттинг", offer: "Регистрация + ставка", payout: 11800, cd: 1500, net: 10300, status: "Активен", recommended: false },
+    { bank: "ВТБ", category: "РКО", offer: "РКО для ИП", payout: 5000, costs: "7% · 4% · 15% · 690 ₽", cd: 1990, net: 3010, status: "Активен", recommended: true },
+    { bank: "Альфа-Банк", category: "РКО", offer: "РКО + бонус лиду", payout: 15000, costs: "15%", cd: 2250, net: 12750, status: "Активен", recommended: true },
+    { bank: "Альфа-Банк", category: "РКО", offer: "Альфа ИП", payout: 21000, costs: "15%", cd: 3150, net: 17850, status: "Активен", recommended: true },
+    { bank: "Озон Банк", category: "РКО", offer: "РКО для бизнеса", payout: 4500, costs: "7% · 4% · 20%", cd: 1740, net: 2760, status: "Активен", recommended: false },
+    { bank: "Сбер", category: "РКО", offer: "РКО · выплата лиду", payout: 3000, costs: "Выплата лиду", cd: 3000, net: 0, status: "Активен", recommended: false },
+    { bank: "ОТП Банк", category: "РКО", offer: "РКО · холд 1 месяц после ЦД", payout: 9000, costs: "7% · 4% · 20% · 690 ₽", cd: 3480, net: 5520, status: "Холд", recommended: false },
+    { bank: "Уралсиб", category: "РКО", offer: "РКО «Стандарт»", payout: 6000, costs: "4% · 7% · 20%", cd: 1860, net: 4140, status: "Активен", recommended: false },
+    { bank: "Т-Банк", category: "РКО", offer: "РКО · зависит от кабинета", payout: 11000, costs: "4% · 7% · 20%", cd: 3410, net: 7590, status: "Активен", recommended: true },
+    { bank: "Билайн", category: "РКО", offer: "РКО для бизнеса", payout: 6000, costs: "7% · 4% · 15% · 500 ₽", cd: 2060, net: 3940, status: "Новый", recommended: true },
+    { bank: "Газпромбанк", category: "Дебет", offer: "Умная карта", payout: 7200, costs: "ЦД 1 100 ₽", cd: 1100, net: 6100, status: "Активен", recommended: true },
+    { bank: "ОТП Банк", category: "Дебет", offer: "ОТП Карта", payout: 4600, costs: "ЦД 700 ₽", cd: 700, net: 3900, status: "Активен", recommended: false },
+    { bank: "Займер", category: "МФО", offer: "Первый займ", payout: 5200, costs: "ЦД 400 ₽", cd: 400, net: 4800, status: "Активен", recommended: false },
+    { bank: "1xStavka", category: "Беттинг", offer: "Первый депозит", payout: 14200, costs: "ЦД 1 800 ₽", cd: 1800, net: 12400, status: "Активен", recommended: true },
   ];
   const renderTable = (list: typeof catalog) => (
     <div className="table-scroll">
       <table>
-        <thead><tr><th>Банк / партнёр</th><th>Категория</th><th>Оффер</th><th>Выплата</th><th>Затраты на ЦД</th><th>Чистыми</th><th>Статус</th></tr></thead>
+        <thead><tr><th>Банк / партнёр</th><th>Категория</th><th>Оффер</th><th>Выплата</th><th>Расходы</th><th>Затраты на ЦД</th><th>Чистыми</th><th>Статус</th></tr></thead>
         <tbody>{list.map((item) => (
           <tr key={`${item.bank}-${item.offer}`} className={item.recommended ? "row-recommended" : ""}>
             <td><span className="bank-cell"><BankLogo bank={item.bank} /><strong>{item.bank}</strong></span>{item.recommended && <span className="rec-badge">★ Рекомендуем</span>}</td><td data-label="Категория"><span className="source-pill">{item.category}</span></td><td data-label="Оффер">{item.offer}</td>
-            <td data-label="Выплата"><strong>{money(item.payout)}</strong></td><td data-label="Затраты на ЦД" className="pink">{money(item.cd)}</td><td data-label="Чистыми" className="lime"><strong>{money(item.net)}</strong></td>
+            <td data-label="Выплата"><strong>{money(item.payout)}</strong></td><td data-label="Расходы" className="muted">{item.costs}</td><td data-label="Затраты на ЦД" className="pink">{money(item.cd)}</td><td data-label="Чистыми" className="lime"><strong>{money(item.net)}</strong></td>
             <td data-label="Статус"><span className={`user-state ${item.status === "Активен" ? "is-active" : ""}`}>● {item.status}</span></td>
           </tr>
         ))}</tbody>
@@ -3704,34 +3707,6 @@ function MediaView({ showToast }: { showToast: (message: string) => void }) {
         {MEDIA_RESOURCES.map((item) => <MediaResourceCard key={item.id} item={item} />)}
       </div>
 
-      <Panel title="Сводная таблица" subtitle="Все ресурсы · метрики для продюсерского центра">
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr><th>Ресурс</th><th>Подписчики</th><th>Охват</th><th>Переходы</th><th>Лиды</th><th>CPL</th><th>Затраты</th><th>Доход</th><th>ROI</th></tr>
-            </thead>
-            <tbody>
-              {MEDIA_RESOURCES.map((item) => {
-                const cpl = Math.round(item.spend / item.leads);
-                const itemRoi = Math.round((item.revenue / item.spend) * 100);
-                return (
-                  <tr key={item.id}>
-                    <td><div className="person-cell"><span><strong>{item.name}</strong><small>{item.type}</small></span></div></td>
-                    <td data-label="Подписчики">{compact(item.followers)}</td>
-                    <td data-label="Охват">{compact(item.reach)}</td>
-                    <td data-label="Переходы">{compact(item.clicks)}</td>
-                    <td data-label="Лиды"><strong>{item.leads}</strong></td>
-                    <td data-label="CPL">{money(cpl)}</td>
-                    <td data-label="Затраты" className="muted">{money(item.spend)}</td>
-                    <td data-label="Доход">{money(item.revenue)}</td>
-                    <td data-label="ROI"><span className={itemRoi >= 100 ? "roi-good" : "roi-bad"}>{itemRoi}%</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
     </>
   );
 }
@@ -3799,6 +3774,11 @@ function AccessView({
   onUser: (id: number) => void;
   onNewKey: () => void;
 }) {
+  const [keys, setKeys] = useState([
+    ["MK-TEAM-2026", "Team Lead", "12 / 25", "31.08.2026"],
+    ["LEAD-SILVER", "Lead Generator", "4 / 20", "15.08.2026"],
+    ["ADMIN-ONE", "Администратор", "1 / 2", "01.09.2026"],
+  ]);
   return (
     <>
       <div className="page-title compact-title">
@@ -3809,11 +3789,7 @@ function AccessView({
       <div className="two-columns">
         <Panel title="Ключи доступа" subtitle="Для регистрации новых участников">
           <div className="access-keys">
-            {[
-              ["MK-TEAM-2026", "Team Lead", "12 / 25", "31.08.2026"],
-              ["LEAD-SILVER", "Lead Generator", "4 / 20", "15.08.2026"],
-              ["ADMIN-ONE", "Администратор", "1 / 2", "01.09.2026"],
-            ].map((key) => <div key={key[0]}><code>{key[0]}</code><span><strong>{key[1]}</strong><small>Использовано {key[2]} · до {key[3]}</small></span><button>Копировать</button></div>)}
+            {keys.map((key) => <div key={key[0]}><code>{key[0]}</code><span><strong>{key[1]}</strong><small>Использовано {key[2]} · до {key[3]}</small></span><button onClick={() => navigator.clipboard?.writeText(key[0])}>Копировать</button><button className="row-action" aria-label={`Удалить ключ ${key[0]}`} onClick={() => setKeys((current) => current.filter((item) => item[0] !== key[0]))}>×</button></div>)}
           </div>
         </Panel>
         <Panel title="Правила использования" subtitle="Ограничения по времени">
@@ -3825,16 +3801,6 @@ function AccessView({
           </div>
         </Panel>
       </div>
-      <Panel title="Входы сегодня" subtitle="Время входа и продолжительность посещения">
-        <div className="table-scroll">
-          <table>
-            <thead><tr><th>Пользователь</th><th>Вход</th><th>Продолжительность</th><th>Устройство</th><th>IP</th><th>Статус</th><th /></tr></thead>
-            <tbody>{users.filter((user) => user.lastLogin.startsWith("Сегодня")).map((user) => (
-              <tr key={user.id} onClick={() => onUser(user.id)}><td><div className="person-cell"><Avatar initials={user.initials} /><strong>{user.name}</strong></div></td><td data-label="Вход">{user.lastLogin.replace("Сегодня, ", "")}</td><td data-label="Длит.">{user.session}</td><td data-label="Устройство">Chrome · Windows</td><td data-label="IP">95.31.•••.24</td><td data-label="Статус"><span className="user-state is-active">● Онлайн</span></td><td><button className="row-action">›</button></td></tr>
-            ))}</tbody>
-          </table>
-        </div>
-      </Panel>
     </>
   );
 }
