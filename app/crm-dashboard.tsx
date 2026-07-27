@@ -15,6 +15,7 @@ import {
   ChartPieSlice,
   Receipt,
   FileText,
+  ClipboardText,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -37,7 +38,8 @@ type View =
   | "media"
   | "rko-stats"
   | "media-stats"
-  | "accounting";
+  | "accounting"
+  | "blogs";
 
 type UserRole = "leadgen" | "teamlead" | "leader" | "influencer" | "admin";
 type UserStatus = "Bronze" | "Silver" | "Gold" | "Platinum";
@@ -168,6 +170,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "analytics", label: "Инсайды", icon: Lightbulb },
       { id: "mini-app", label: "Mini App", icon: DeviceMobile },
       { id: "info", label: "Инфораздел", icon: BookOpen },
+      { id: "blogs", label: "Блоги и задачи", icon: ClipboardText },
     ],
   },
   {
@@ -1256,6 +1259,7 @@ export function CrmDashboard() {
           {view === "rko-stats" && <StatsView kind="РКО" showToast={showToast} />}
           {view === "media-stats" && <StatsView kind="Медиа" showToast={showToast} />}
           {view === "accounting" && <AccountingView showToast={showToast} />}
+          {view === "blogs" && <BlogsView />}
         </div>
       </main>
 
@@ -2786,27 +2790,9 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
 
       <ProblemsAnalysis items={RKO_PROBLEMS} />
 
-      <Panel title="Команды · РКО" subtitle="Полная выписка по каждой команде">
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr><th>Команда</th><th>Тимлид</th><th>Лиды</th><th>Апрувы</th><th>Выручка</th><th>Выплаты</th><th>Наша прибыль</th><th>Конверсия</th></tr>
-            </thead>
-            <tbody>
-              {TEAM_STATS.map((team) => (
-                <tr key={team.team} className={team.team === weak.team ? "row-weak" : ""}>
-                  <td><strong>{team.team}</strong></td>
-                  <td data-label="Тимлид">{team.lead}</td>
-                  <td data-label="Лиды">{team.leads}</td>
-                  <td data-label="Апрувы">{team.approved}</td>
-                  <td data-label="Выручка">{money(team.revenue)}</td>
-                  <td data-label="Выплаты" className="muted">{money(team.payout)}</td>
-                  <td data-label="Наша прибыль"><strong className="lime">{money(team.revenue - team.payout)}</strong></td>
-                  <td data-label="Конверсия"><span className={team.conversion >= 45 ? "roi-good" : "roi-bad"}>{team.conversion}%</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Panel title="Команды · РКО" subtitle="Нажмите на карточку для подробной информации">
+        <div className="team-stat-grid">
+          {TEAM_STATS.map((team) => <button className={`team-stat-card ${team.team === weak.team ? "is-weak" : ""}`} key={team.team} onClick={() => showToast(`${team.team}: ${team.leads} лидов · ${money(team.revenue - team.payout)} прибыли`)}><strong>{team.team}</strong><span>Тимлид: {team.lead}</span><div><b>Лиды: {team.leads}</b><b>Апрувы: {team.approved}</b></div><p>Выручка: {money(team.revenue)}</p><p>Прибыль: <em>{money(team.revenue - team.payout)}</em></p><small>Конверсия: {team.conversion}%</small></button>)}
         </div>
       </Panel>
     </>
@@ -3145,6 +3131,28 @@ function OffersView({ setMetricModal }: { setMetricModal: (type: string) => void
           {renderTable(catalog)}
         </Panel>
       )}
+    </>
+  );
+}
+
+function BlogsView() {
+  const [filter, setFilter] = useState("Все направления");
+  const [tasks, setTasks] = useState([
+    { id: 1, owner: "Тимлид лидогенерации", direction: "Лидогенерация", title: "Сверить источники за неделю", due: "Сегодня", status: "В работе" },
+    { id: 2, owner: "Тимлид РКО", direction: "РКО", title: "Обновить ставки банков", due: "Завтра", status: "Новая" },
+    { id: 3, owner: "Тимлид беттинга", direction: "Беттинг", title: "Подготовить отчёт по качеству трафика", due: "28 июля", status: "Новая" },
+    { id: 4, owner: "Тимлид МФО", direction: "МФО", title: "Проверить причины отказов", due: "29 июля", status: "Завершена" },
+    { id: 5, owner: "Ассистент", direction: "Операционка", title: "Собрать документы для выплат", due: "Сегодня", status: "В работе" },
+  ]);
+  const directions = ["Все направления", "Лидогенерация", "РКО", "Беттинг", "МФО", "Операционка"];
+  const visible = tasks.filter((task) => filter === "Все направления" || task.direction === filter);
+  const toggle = (id: number) => setTasks((current) => current.map((task) => task.id === id ? { ...task, status: task.status === "Завершена" ? "В работе" : "Завершена" } : task));
+  return (
+    <>
+      <div className="page-title compact-title"><div><span className="eyebrow">Рабочий центр</span><h1>Блоги и задачи</h1><p>Тимлиды ведут свои направления, а ассистент собирает задачи и статусы в одном месте.</p></div><button className="primary-button" onClick={() => setTasks((current) => [{ id: Date.now(), owner: "Новая задача", direction: "Операционка", title: "Новая задача без названия", due: "Сегодня", status: "Новая" }, ...current])}>＋ Добавить задачу</button></div>
+      <div className="blog-role-grid">{["Тимлид лидогенерации", "Тимлид РКО", "Тимлид беттинга", "Тимлид МФО", "Ассистент"].map((role) => <article key={role}><span className="blog-role-icon">{role === "Ассистент" ? "A" : "T"}</span><div><strong>{role}</strong><small>{tasks.filter((task) => task.owner === role).length} задач · отчёт раз в день</small></div><button className="text-button">Открыть →</button></article>)}</div>
+      <Panel title="Трекер задач" subtitle="Отметьте выполнение — прогресс сохраняется в текущей сессии"><div className="blog-filters">{directions.map((item) => <button className={filter === item ? "is-active" : ""} key={item} onClick={() => setFilter(item)}>{item}</button>)}</div><div className="task-list">{visible.map((task) => <article className={`task-row ${task.status === "Завершена" ? "is-done" : ""}`} key={task.id}><button className="task-check" onClick={() => toggle(task.id)}>{task.status === "Завершена" ? "✓" : ""}</button><div><strong>{task.title}</strong><small>{task.owner} · {task.direction}</small></div><span>{task.due}</span><b>{task.status}</b></article>)}</div></Panel>
+      <Panel title="Ежедневный отчёт" subtitle="Что тимлид должен подгрузить по итогам дня"><div className="blog-report-grid"><div><span>Выполненные задачи</span><strong>{tasks.filter((task) => task.status === "Завершена").length}</strong></div><div><span>В работе</span><strong>{tasks.filter((task) => task.status === "В работе").length}</strong></div><div><span>Новые блокеры</span><strong>2</strong></div><div><span>Готовность</span><strong>{Math.round((tasks.filter((task) => task.status === "Завершена").length / tasks.length) * 100)}%</strong></div></div></Panel>
     </>
   );
 }
