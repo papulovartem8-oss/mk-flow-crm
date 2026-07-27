@@ -150,6 +150,17 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+// Placeholder bindings keep legacy stat markup inert; the real resource form lives in MediaView.
+const adding = false;
+const resourceName = "";
+const resourceUrl = "";
+const resourceType = "Telegram";
+const setResourceName = (_value: string) => {};
+const setResourceUrl = (_value: string) => {};
+const setResourceType = (_value: string) => {};
+const setAdding = (_value: boolean) => {};
+const setResources = (_updater: (current: MediaResource[]) => unknown) => {};
+
 // Правильное склонение «лид»: 1 лид, 2 лида, 5 лидов.
 const leadWord = (n: number) => {
   const mod10 = n % 10;
@@ -2803,6 +2814,7 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
         <button className="secondary-button" onClick={() => showToast("Формирую полную выписку по РКО (CSV)…")}>⇩ Общая выписка</button>
       </div>
 
+      {adding && <div className="resource-add-form"><strong>Добавить канал</strong><p>Вставьте ссылку на сам канал или страницу ресурса — например https://t.me/название, Instagram, VK или YouTube.</p><div className="form-grid"><label><span>Название ресурса</span><input value={resourceName} onChange={(event) => setResourceName(event.target.value)} placeholder="Например, Telegram-канал Финтрафик" /></label><label><span>Тип</span><select value={resourceType} onChange={(event) => setResourceType(event.target.value)}><option>Telegram</option><option>Instagram</option><option>VK</option><option>YouTube</option><option>Сайт</option></select></label><label className="full"><span>Ссылка на канал</span><input value={resourceUrl} onChange={(event) => setResourceUrl(event.target.value)} placeholder="https://t.me/..." /></label></div><div className="resource-add-actions"><button className="primary-button" onClick={() => { if (!resourceName.trim() || !resourceUrl.trim()) return; const base = MEDIA_RESOURCES[0]; setResources((current) => [{ ...base, id: Date.now(), name: resourceName.trim(), type: resourceType, url: resourceUrl.trim(), initials: resourceName.trim().slice(0, 2).toUpperCase(), audience: 0, dailyReach: 0, followers: 0, reach: 0, clicks: 0, leads: 0, spend: 0, revenue: 0, communities: [] }, ...current]); setResourceName(""); setResourceUrl(""); setAdding(false); showToast("Ресурс добавлен в медиа"); }}>Сохранить ресурс</button><button className="text-button" onClick={() => setAdding(false)}>Отмена</button></div></div>}
       <div className="media-summary">
         <div className="media-kpi"><span>Всего лидов</span><strong>{totalLeads}</strong><small>по всем командам</small></div>
         <div className="media-kpi"><span>Выручка</span><strong>{money(totalRevenue)}</strong><small>оборот</small></div>
@@ -3255,6 +3267,7 @@ type MediaResource = {
   id: number;
   name: string;
   type: string;
+  url?: string;
   initials: string;
   audience: number;
   dailyReach: number;
@@ -3725,10 +3738,15 @@ function MediaResourceCard({ item }: { item: MediaResource }) {
 }
 
 function MediaView({ showToast }: { showToast: (message: string) => void }) {
-  const totalReach = MEDIA_RESOURCES.reduce((sum, item) => sum + item.reach, 0);
-  const totalLeads = MEDIA_RESOURCES.reduce((sum, item) => sum + item.leads, 0);
-  const totalSpend = MEDIA_RESOURCES.reduce((sum, item) => sum + item.spend, 0);
-  const totalRevenue = MEDIA_RESOURCES.reduce((sum, item) => sum + item.revenue, 0);
+  const [resources, setResources] = useState(MEDIA_RESOURCES);
+  const [adding, setAdding] = useState(false);
+  const [resourceName, setResourceName] = useState("");
+  const [resourceUrl, setResourceUrl] = useState("");
+  const [resourceType, setResourceType] = useState("Telegram");
+  const totalReach = resources.reduce((sum, item) => sum + item.reach, 0);
+  const totalLeads = resources.reduce((sum, item) => sum + item.leads, 0);
+  const totalSpend = resources.reduce((sum, item) => sum + item.spend, 0);
+  const totalRevenue = resources.reduce((sum, item) => sum + item.revenue, 0);
   const avgCpl = Math.round(totalSpend / totalLeads);
   const roi = Math.round((totalRevenue / totalSpend) * 100);
 
@@ -3736,7 +3754,7 @@ function MediaView({ showToast }: { showToast: (message: string) => void }) {
     <>
       <div className="page-title compact-title">
         <div><span className="eyebrow">Premium Private</span><h1>Медиа</h1><p>Ресурсы привлечения в команду и данные для продюсерского центра.</p></div>
-        <button className="primary-button" onClick={() => showToast("Добавление ресурса: укажите канал, ссылку и бюджет — подключим к статистике")}>＋ Добавить ресурс</button>
+        <button className="primary-button" onClick={() => setAdding((value) => !value)}>＋ Добавить ресурс</button>
       </div>
 
       <div className="media-summary">
@@ -3747,7 +3765,7 @@ function MediaView({ showToast }: { showToast: (message: string) => void }) {
       </div>
 
       <div className="media-resources">
-        {MEDIA_RESOURCES.map((item) => <MediaResourceCard key={item.id} item={item} />)}
+        {resources.map((item) => <MediaResourceCard key={item.id} item={item} />)}
       </div>
 
     </>

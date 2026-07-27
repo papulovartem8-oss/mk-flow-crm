@@ -9004,3 +9004,6 @@ body {
 .team-detail-list span { color: #a9adb5; font-size: 12px; }
 :root { --lime: #d8b23d; }
 .primary-button { background: linear-gradient(180deg, #d8b23d, #b98d1d) !important; box-shadow: 0 8px 22px rgba(180,140,30,.18) !important; }
+.resource-add-form { margin: 14px 0 18px; padding: 18px; border: 1px solid rgba(216,178,61,.3); border-radius: 16px; background: rgba(216,178,61,.06); }
+.resource-add-form > p { margin: 6px 0 14px; color: #a9adb5; font-size: 13px; line-height: 1.5; }
+.resource-add-actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
