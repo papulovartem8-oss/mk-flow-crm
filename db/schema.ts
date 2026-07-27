@@ -145,3 +145,25 @@ export const teamReports = sqliteTable("team_reports", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const teamNews = sqliteTable("team_news", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  author: text("author").notNull(),
+  role: text("role").notNull(),
+  team: text("team"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const workTasks = sqliteTable("work_tasks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
+  owner: text("owner").notNull(),
+  direction: text("direction").notNull(),
+  due: text("due").notNull(),
+  status: text("status").notNull().default("Новая"),
+  team: text("team"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

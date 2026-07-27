@@ -949,6 +949,16 @@ export function CrmDashboard() {
     };
   }, [agent]);
 
+  useEffect(() => {
+    if (!agent) return;
+    fetch("/api/ops")
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((payload: { news?: { id: number; title: string; body: string; author: string; role: string; team?: string | null; createdAt: string }[] }) => {
+        if (payload.news?.length) setNews(payload.news.map((item) => ({ id: item.id, title: item.title, text: item.body, author: item.author, role: item.role, team: item.team ?? undefined, date: item.createdAt })));
+      })
+      .catch(() => {});
+  }, [agent]);
+
   // Загружаем лиды из D1. Если база пуста — засеваем демо, чтобы правки
   // сохранялись между заходами.
   useEffect(() => {
@@ -1013,7 +1023,13 @@ export function CrmDashboard() {
       { id: Date.now(), title, text, author: agent.name, role: ROLE_LABELS[agent.role], date: "Только что", team: agent.team },
       ...current,
     ]);
+    void fetch("/api/ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "news", title, text, author: agent.name, role: ROLE_LABELS[agent.role], team: agent.team }) }).catch(() => {});
     showToast("Новость опубликована — видна всем участникам");
+  };
+
+  const deleteNews = (id: number) => {
+    setNews((current) => current.filter((item) => item.id !== id));
+    void fetch("/api/ops", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "news", id }) }).catch(() => {});
   };
 
   const updateLead = (field: keyof Lead, value: string | number) => {
@@ -1196,7 +1212,7 @@ export function CrmDashboard() {
               leads={leads}
               news={news.filter((item) => !item.team || item.team === agent.team)}
               canManageNews={agent.role === "admin" || agent.role === "leader" || agent.role === "teamlead"}
-              deleteNews={(id) => setNews((current) => current.filter((item) => item.id !== id))}
+              deleteNews={deleteNews}
               setMetricModal={setMetricModal}
               openUser={openUser}
               navigate={navigate}
@@ -3151,6 +3167,13 @@ function BlogsView() {
   const directions = ["Все направления", "Лидогенерация", "РКО", "Беттинг", "МФО", "Операционка"];
   const visible = tasks.filter((task) => filter === "Все направления" || task.direction === filter);
   const toggle = (id: number) => setTasks((current) => current.map((task) => task.id === id ? { ...task, status: task.status === "Завершена" ? "В работе" : "Завершена" } : task));
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/ops").then((response) => response.ok ? response.json() : Promise.reject()).then((payload: { tasks?: { id: number; title: string; owner: string; direction: string; due: string; status: string }[] }) => {
+      if (!cancelled && payload.tasks?.length) setTasks(payload.tasks.map((task) => ({ id: task.id, title: task.title, owner: task.owner, direction: task.direction, due: task.due, status: task.status })));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   return (
     <>
       <div className="page-title compact-title"><div><span className="eyebrow">Рабочий центр</span><h1>Блоги и задачи</h1><p>Тимлиды ведут свои направления, а ассистент собирает задачи и статусы в одном месте.</p></div><button className="primary-button" onClick={() => setTasks((current) => [{ id: Date.now(), owner: "Новая задача", direction: "Операционка", title: "Новая задача без названия", due: "Сегодня", status: "Новая" }, ...current])}>＋ Добавить задачу</button></div>
