@@ -68,7 +68,7 @@ export async function verifySession(token: string | null): Promise<SessionPayloa
   if (!body || !sig) return null;
   try {
     const key = await getKey();
-    const ok = await crypto.subtle.verify("HMAC", key, b64urlDecode(sig), enc.encode(body));
+    const ok = await crypto.subtle.verify("HMAC", key, b64urlDecode(sig) as unknown as BufferSource, enc.encode(body));
     if (!ok) return null;
     const payload = JSON.parse(dec.decode(b64urlDecode(body))) as SessionPayload;
     if (!payload.exp || payload.exp < Date.now()) return null;
