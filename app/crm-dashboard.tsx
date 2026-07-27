@@ -105,7 +105,7 @@ type Lead = {
   team: string;
   created: string;
   description: string;
-  issue?: "Нет контакта" | "Нет суммы" | "Низкое качество" | "Застрял";
+  issue?: "Нет контакта" | "Нет суммы" | "Низкое качество" | "Застрял" | "Не отвечает" | "Неверно читает указания" | "Блокировка 115-ФЗ" | "Нет банка в городе" | "Проблемы с пропиской";
   ai: number;
   offers: OfferItem[];
   username?: string;
@@ -896,7 +896,7 @@ function LoginScreen({ onLogin }: { onLogin: (agent: Agent) => void }) {
   );
 }
 
-type NewsItem = { id: number; title: string; text: string; author: string; role: string; date: string };
+type NewsItem = { id: number; title: string; text: string; author: string; role: string; date: string; team?: string };
 
 const INITIAL_NEWS: NewsItem[] = [
   { id: 1, title: "Новый оффер Уралсиб — повышенная ставка", text: "Первые 3 дня выплата по РКО Уралсиб +20%. Налетайте, пока действует акция.", author: "Дмитрий Волков", role: "Leader", date: "Сегодня, 10:20" },
@@ -1010,7 +1010,7 @@ export function CrmDashboard() {
   const publishNews = (title: string, text: string) => {
     if (!agent) return;
     setNews((current) => [
-      { id: Date.now(), title, text, author: agent.name, role: ROLE_LABELS[agent.role], date: "Только что" },
+      { id: Date.now(), title, text, author: agent.name, role: ROLE_LABELS[agent.role], date: "Только что", team: agent.team },
       ...current,
     ]);
     showToast("Новость опубликована — видна всем участникам");
@@ -1194,7 +1194,7 @@ export function CrmDashboard() {
               setPeriod={setPeriod}
               users={users}
               leads={leads}
-              news={news}
+              news={news.filter((item) => !item.team || item.team === agent.team)}
               canManageNews={agent.role === "admin" || agent.role === "leader" || agent.role === "teamlead"}
               deleteNews={(id) => setNews((current) => current.filter((item) => item.id !== id))}
               setMetricModal={setMetricModal}
@@ -1943,6 +1943,10 @@ function ProblemsView({
     { name: "Нет суммы", count: 1, color: "#46d9ff" },
     { name: "Низкое качество", count: 1, color: "#a78bfa" },
     { name: "Застрял", count: 1, color: "#bdff38" },
+    { name: "Не отвечает", count: 0, color: "#ffb35c" },
+    { name: "Блокировка 115-ФЗ", count: 0, color: "#ff6e91" },
+    { name: "Нет банка в городе", count: 0, color: "#46d9ff" },
+    { name: "Проблемы с пропиской", count: 0, color: "#a78bfa" },
   ];
   return (
     <>
@@ -3783,21 +3787,21 @@ function AccessView({
   onNewKey: () => void;
 }) {
   const [keys, setKeys] = useState([
-    ["MK-TEAM-2026", "Team Lead", "12 / 25", "31.08.2026"],
-    ["LEAD-SILVER", "Lead Generator", "4 / 20", "15.08.2026"],
-    ["ADMIN-ONE", "Администратор", "1 / 2", "01.09.2026"],
+    { generated: "MK-TEAM-2026", role: "Team Lead", used: "12 / 25", expires: "31.08.2026" },
+    { generated: "LEAD-SILVER", role: "Lead Generator", used: "4 / 20", expires: "15.08.2026" },
+    { generated: "ADMIN-ONE", role: "Администратор", used: "1 / 2", expires: "01.09.2026" },
   ]);
   return (
     <>
       <div className="page-title compact-title">
         <div><span className="eyebrow">Premium Private</span><h1>Админка</h1><p>Ключи регистрации, доступы участников и журнал входов.</p></div>
-        <button className="primary-button" onClick={onNewKey}>＋ Создать ключ</button>
+        <button className="primary-button" onClick={() => { const generated = `MK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; setKeys((current) => [{ generated, role: "Lead Generator", used: "0 / 20", expires: "31.08.2026" }, ...current]); onNewKey(); }}>＋ Создать ключ</button>
       </div>
       <PayoutCaps />
       <div className="two-columns">
         <Panel title="Ключи доступа" subtitle="Для регистрации новых участников">
           <div className="access-keys">
-            {keys.map((key) => <div key={key[0]}><code>{key[0]}</code><span><strong>{key[1]}</strong><small>Использовано {key[2]} · до {key[3]}</small></span><button onClick={() => navigator.clipboard?.writeText(key[0])}>Копировать</button><button className="row-action" aria-label={`Удалить ключ ${key[0]}`} onClick={() => setKeys((current) => current.filter((item) => item[0] !== key[0]))}>×</button></div>)}
+            {keys.map((key) => <div key={key.generated}><code>{key.generated}</code><span><strong>{key.role}</strong><small>Использовано {key.used} · до {key.expires}</small></span><button onClick={() => navigator.clipboard?.writeText(key.generated)}>Копировать</button><button className="row-action" aria-label={`Удалить ключ ${key.generated}`} onClick={() => setKeys((current) => current.filter((item) => item.generated !== key.generated))}>×</button></div>)}
           </div>
         </Panel>
         <Panel title="Правила использования" subtitle="Ограничения по времени">
