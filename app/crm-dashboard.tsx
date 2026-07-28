@@ -4275,7 +4275,7 @@ function UserDrawer({
   onToggle: () => void;
   showToast: (message: string) => void;
 }) {
-  const [showRevenue, setShowRevenue] = useState(false);
+  const [expandedStat, setExpandedStat] = useState<"revenue" | "leads" | "conversion" | "offer" | null>(null);
   const bySource = useMemo(() => {
     const map = new Map<string, { leads: number; earned: number; potential: number }>();
     leads.forEach((lead) => {
@@ -4287,6 +4287,20 @@ function UserDrawer({
     });
     return [...map.entries()].sort((a, b) => b[1].earned - a[1].earned);
   }, [leads]);
+  const byOffer = useMemo(() => {
+    const map = new Map<string, { leads: number; earned: number }>();
+    leads.forEach((lead) => {
+      const name = lead.direction ?? lead.product ?? "Без оффера";
+      const current = map.get(name) ?? { leads: 0, earned: 0 };
+      current.leads += 1;
+      current.earned += leadBalance(lead);
+      map.set(name, current);
+    });
+    return [...map.entries()].sort((a, b) => b[1].earned - a[1].earned);
+  }, [leads]);
+  const successfulLeads = leads.filter((lead) => lead.status === "Успешно").length;
+  const setExpanded = (value: "revenue" | "leads" | "conversion" | "offer") =>
+    setExpandedStat((current) => (current === value ? null : value));
 
   return (
     <div className="drawer-layer">
@@ -4298,12 +4312,12 @@ function UserDrawer({
           <button className="secondary-button" onClick={onToggle}>{user.status === "Активен" ? "Деактивировать" : "Активировать"}</button>
         </div>
         <div className="user-hero-stats">
-          <button className={`hero-stat-btn ${showRevenue ? "is-open" : ""}`} onClick={() => setShowRevenue((value) => !value)}><span>Выручка ▾</span><strong>{money(user.revenue)}</strong><small className="positive">+14,8%</small></button>
-          <button className="hero-stat-btn" onClick={() => showToast(`${user.name}: ${user.leads} ${leadWord(user.leads)} за месяц — полный список ниже`)}><span>Лиды ›</span><strong>{user.leads}</strong><small>за месяц</small></button>
-          <button className="hero-stat-btn" onClick={() => showToast(`Конверсия ${user.conversion}% — в топ-24% по команде`)}><span>Конверсия ›</span><strong>{user.conversion}%</strong><small>топ 24%</small></button>
-          <button className="hero-stat-btn" onClick={() => showToast(`Топ оффер: ${user.topOffer} — приносит больше всего дохода`)}><span>Топ оффер ›</span><strong>{user.topOffer}</strong><small>по доходу</small></button>
+          <button className={`hero-stat-btn ${expandedStat === "revenue" ? "is-open" : ""}`} onClick={() => setExpanded("revenue")}><span>Выручка ›</span><strong>{money(user.revenue)}</strong><small className="positive">+14,8%</small></button>
+          <button className={`hero-stat-btn ${expandedStat === "leads" ? "is-open" : ""}`} onClick={() => setExpanded("leads")}><span>Лиды ›</span><strong>{user.leads}</strong><small>за месяц</small></button>
+          <button className={`hero-stat-btn ${expandedStat === "conversion" ? "is-open" : ""}`} onClick={() => setExpanded("conversion")}><span>Конверсия ›</span><strong>{user.conversion}%</strong><small>топ 24%</small></button>
+          <button className={`hero-stat-btn ${expandedStat === "offer" ? "is-open" : ""}`} onClick={() => setExpanded("offer")}><span>Топ оффер ›</span><strong>{user.topOffer}</strong><small>по доходу</small></button>
         </div>
-        {showRevenue && (
+        {expandedStat === "revenue" && (
           <div className="drawer-section">
             <div className="section-title"><h3>Откуда выручка</h3><span>по источникам лидов</span></div>
             <div className="revenue-breakdown">
@@ -4526,6 +4540,24 @@ function MetricModal({
             <div><span>Начислено за период</span><b>2 881 600 ₽</b></div>
             <div><span>Выплачено</span><b>744 200 ₽</b></div>
             <button className="primary-button" onClick={() => { onClose(); showToast("Раздел выплат откроется в бухгалтерском учёте"); }}>Открыть выплаты</button>
+          </div>
+        )}
+        {expandedStat === "leads" && (
+          <div className="drawer-section stat-detail-section">
+            <div className="section-title"><h3>Подробно по лидам</h3><span>{leads.length} в текущей выборке</span></div>
+            <div className="session-grid"><div><span>Всего лидов</span><strong>{user.leads}</strong></div><div><span>Успешно</span><strong>{successfulLeads}</strong></div><div><span>В работе</span><strong>{leads.filter((lead) => lead.status === "В работе").length}</strong></div><div><span>Отказ</span><strong>{leads.filter((lead) => lead.status === "Отказ").length}</strong></div></div>
+          </div>
+        )}
+        {expandedStat === "conversion" && (
+          <div className="drawer-section stat-detail-section">
+            <div className="section-title"><h3>Конверсия по источникам</h3><span>лид → успешно</span></div>
+            <div className="revenue-breakdown">{bySource.map(([source, stat]) => { const sourceLeads = leads.filter((lead) => lead.source === source); const success = sourceLeads.filter((lead) => lead.status === "Успешно").length; const rate = sourceLeads.length ? Math.round((success / sourceLeads.length) * 100) : 0; return <div key={source} className="revenue-row"><strong>{source}</strong><span className="muted">{success} из {sourceLeads.length}</span><span className="rev-earned">{rate}%</span></div>; })}</div>
+          </div>
+        )}
+        {expandedStat === "offer" && (
+          <div className="drawer-section stat-detail-section">
+            <div className="section-title"><h3>Распределение по офферам</h3><span>выручка и лиды</span></div>
+            <div className="revenue-breakdown">{byOffer.map(([offer, stat]) => <div key={offer} className="revenue-row"><strong>{offer}</strong><span className="muted">{stat.leads} {leadWord(stat.leads)}</span><span className="rev-earned">{money(stat.earned)}</span></div>)}</div>
           </div>
         )}
         {productMatch && (
