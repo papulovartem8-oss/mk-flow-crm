@@ -2749,6 +2749,12 @@ const TEAM_STATS = [
   { team: "Вектор", lead: "Иван", leads: 132, approved: 39, revenue: 612000, payout: 498000, conversion: 29 },
   { team: "Blogsphere", lead: "Мария", leads: 98, approved: 54, revenue: 786000, payout: 540000, conversion: 55 },
 ];
+const TEAM_MEMBERS: Record<string, { name: string; leads: number; revenue: number }[]> = {
+  Excellent: [{ name: "Анна Сидорова", leads: 46, revenue: 486300 }, { name: "Иван Петров", leads: 38, revenue: 392700 }, { name: "Сергей Ковалёв", leads: 24, revenue: 188900 }],
+  Северная: [{ name: "Мария Орлова", leads: 31, revenue: 354200 }, { name: "Ольга Морозова", leads: 28, revenue: 228500 }, { name: "Павел Фёдоров", leads: 22, revenue: 178400 }],
+  Вектор: [{ name: "Иван Петров", leads: 38, revenue: 210500 }, { name: "Алина Кузнецова", leads: 27, revenue: 164200 }],
+  Blogsphere: [{ name: "Мария Орлова", leads: 31, revenue: 267800 }, { name: "Александр Иванов", leads: 19, revenue: 142300 }],
+};
 
 const RKO_PROBLEMS = [
   { title: "Т-Банк не сверяет заявки 3-й день", text: "12 заявок зависли в статусе «Ждёт сверки». Возможен сбой на стороне партнёра — стоит написать менеджеру Т-Банка." },
@@ -2822,7 +2828,7 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
         <div className="team-stat-grid">
           {TEAM_STATS.map((team) => <button className={`team-stat-card ${team.team === weak.team ? "is-weak" : ""}`} key={team.team} onClick={() => setSelectedTeam(team)}><strong>{team.team}</strong><span>Тимлид: {team.lead}</span><div><b>Лиды: {team.leads}</b><b>Апрувы: {team.approved}</b></div><p>Выручка: {money(team.revenue)}</p><p>Прибыль: <em>{money(team.revenue - team.payout)}</em></p><small>Конверсия: {team.conversion}%</small></button>)}
         </div>
-        {selectedTeam && <div className="team-detail-panel"><div className="section-title"><h3>{selectedTeam.team}</h3><button className="row-action" onClick={() => setSelectedTeam(null)}>×</button></div><div className="team-detail-list"><article><strong>Тимлид: {selectedTeam.lead}</strong><span>Лиды: {selectedTeam.leads} · Апрувы: {selectedTeam.approved}</span><span>Выручка: {money(selectedTeam.revenue)} · Выплаты: {money(selectedTeam.payout)}</span><b>Прибыль: {money(selectedTeam.revenue - selectedTeam.payout)} · Конверсия: {selectedTeam.conversion}%</b><span>Здесь можно будет открыть список участников и лидов команды.</span></article></div></div>}
+        {selectedTeam && <div className="team-detail-panel"><div className="section-title"><h3>{selectedTeam.team}</h3><button className="row-action" onClick={() => setSelectedTeam(null)}>×</button></div><div className="team-detail-list"><article><strong>Тимлид: {selectedTeam.lead}</strong><span>Лиды: {selectedTeam.leads} · Апрувы: {selectedTeam.approved}</span><span>Выручка: {money(selectedTeam.revenue)} · Выплаты: {money(selectedTeam.payout)}</span><b>Прибыль: {money(selectedTeam.revenue - selectedTeam.payout)} · Конверсия: {selectedTeam.conversion}%</b></article>{(TEAM_MEMBERS[selectedTeam.team] ?? []).map((member) => <article key={member.name}><strong>{member.name}</strong><span>Лидов: {member.leads}</span><b>Принёс: {money(member.revenue)}</b></article>)}</div></div>}
       </Panel>
     </>
   );
@@ -2860,9 +2866,18 @@ const PAY_STATUS_CLASS: Record<PayStatus, string> = {
 };
 
 function AccountingView({ showToast }: { showToast: (message: string) => void }) {
+  const [selectedPay, setSelectedPay] = useState<(typeof PAYOUTS)[number] | null>(null);
   const accrued = PAYOUTS.reduce((sum, pay) => sum + pay.amount, 0);
   const paid = PAYOUTS.filter((pay) => pay.status === "Оплачено").reduce((sum, pay) => sum + pay.amount, 0);
   const pending = accrued - paid;
+  const byRecipient = PAYOUTS.reduce<Record<string, { total: number; paid: number; operations: number }>>((result, pay) => {
+    const current = result[pay.recipient] ?? { total: 0, paid: 0, operations: 0 };
+    current.total += pay.amount;
+    current.paid += pay.status === "Оплачено" ? pay.amount : 0;
+    current.operations += 1;
+    result[pay.recipient] = current;
+    return result;
+  }, {});
 
   return (
     <>
@@ -2886,7 +2901,7 @@ function AccountingView({ showToast }: { showToast: (message: string) => void })
             </thead>
             <tbody>
               {PAYOUTS.map((pay) => (
-                <tr key={pay.id}>
+                <tr key={pay.id} className="clickable-row" onClick={() => setSelectedPay(pay)}>
                   <td><strong>{pay.recipient}</strong></td>
                   <td data-label="Команда">{pay.team}</td>
                   <td data-label="Направление"><DirectionPill direction={pay.direction} /></td>
@@ -2899,6 +2914,10 @@ function AccountingView({ showToast }: { showToast: (message: string) => void })
             </tbody>
           </table>
         </div>
+        <div className="team-detail-list accounting-people-summary">
+          {Object.entries(byRecipient).map(([recipient, item]) => <article key={recipient}><strong>{recipient}</strong><span>Операций: {item.operations} · Начислено: {money(item.total)}</span><b>Выплачено: {money(item.paid)} · К выплате: {money(item.total - item.paid)}</b></article>)}
+        </div>
+        {selectedPay && <div className="team-detail-panel accounting-detail"><div className="section-title"><h3>{selectedPay.recipient}</h3><button className="row-action" onClick={() => setSelectedPay(null)}>×</button></div><div className="team-detail-list"><article><strong>{selectedPay.team} · {selectedPay.direction}</strong><span>Сумма: {money(selectedPay.amount)} · Дата: {selectedPay.date}</span><span>Способ выплаты: {selectedPay.method}</span><b>Статус: {selectedPay.status}</b></article></div></div>}
       </Panel>
     </>
   );
@@ -3538,6 +3557,7 @@ function FunnelFlow({ stages, defaultOpen }: { stages: FunnelStage[]; defaultOpe
 
 // Карточка одного медиа-ресурса по ТЗ заказчика.
 function MediaResourceCard({ item }: { item: MediaResource }) {
+  const [open, setOpen] = useState(false);
   const w = item.warmup;
   const publishedPosts = w.posts.filter((post) => post.published).length;
   const postsPct = w.posts.length ? Math.round((publishedPosts / w.posts.length) * 100) : 0;
@@ -3556,7 +3576,7 @@ function MediaResourceCard({ item }: { item: MediaResource }) {
 
   return (
     <article className="media-resource">
-      <header className="media-resource-head">
+      <button className="media-resource-head media-resource-toggle" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
         <Avatar initials={item.initials} large />
         <div>
           <strong>{item.name}</strong>
@@ -3566,7 +3586,12 @@ function MediaResourceCard({ item }: { item: MediaResource }) {
           <div><span>Аудитория</span><strong>{compact(item.audience)}</strong></div>
           <div><span>Суточный охват</span><strong>{compact(item.dailyReach)}</strong></div>
         </div>
-      </header>
+        <span className="media-resource-chevron">{open ? "⌃" : "⌄"}</span>
+      </button>
+
+      {!open && <div className="media-resource-preview"><span>Комьюнити: {item.communities.length}</span><span>Прогрев: {w.plannedPosts} постов</span><span>Лиды: {item.leads}</span><strong>Нажмите, чтобы раскрыть подробности</strong></div>}
+
+      {open && <>
 
       <section className="media-block">
         <h4>Действующие комьюнити</h4>
@@ -3726,6 +3751,7 @@ function MediaResourceCard({ item }: { item: MediaResource }) {
           ]}
         />
       </section>
+      </>}
     </article>
   );
 }
@@ -4546,6 +4572,7 @@ function MetricModal({
           <div className="drawer-section stat-detail-section">
             <div className="section-title"><h3>Подробно по лидам</h3><span>{leads.length} в текущей выборке</span></div>
             <div className="session-grid"><div><span>Всего лидов</span><strong>{user.leads}</strong></div><div><span>Успешно</span><strong>{successfulLeads}</strong></div><div><span>В работе</span><strong>{leads.filter((lead) => lead.status === "В работе").length}</strong></div><div><span>Отказ</span><strong>{leads.filter((lead) => lead.status === "Отказ").length}</strong></div></div>
+            <div className="user-leads detail-leads-list">{leads.map((lead) => <button key={lead.id} onClick={() => onLead(lead.id)}><Avatar initials={lead.initials} /><span><strong>{lead.client}</strong><small>{lead.direction ?? lead.product} · {lead.source}</small></span><StatusBadge status={lead.status} /><b>{money(leadBalance(lead))}</b><i>›</i></button>)}</div>
           </div>
         )}
         {expandedStat === "conversion" && (
