@@ -4359,6 +4359,25 @@ function UserDrawer({
             </div>
           </div>
         )}
+        {expandedStat === "leads" && (
+          <div className="drawer-section stat-detail-section">
+            <div className="section-title"><h3>Подробно по лидам</h3><span>{leads.length} в текущей выборке</span></div>
+            <div className="session-grid"><div><span>Всего лидов</span><strong>{user.leads}</strong></div><div><span>Успешно</span><strong>{successfulLeads}</strong></div><div><span>В работе</span><strong>{leads.filter((lead) => lead.status === "В работе").length}</strong></div><div><span>Отказ</span><strong>{leads.filter((lead) => lead.status === "Отказ").length}</strong></div></div>
+            <div className="user-leads detail-leads-list">{leads.map((lead) => <button key={lead.id} onClick={() => onLead(lead.id)}><Avatar initials={lead.initials} /><span><strong>{lead.client}</strong><small>{lead.direction ?? lead.product} · {lead.source}</small></span><StatusBadge status={lead.status} /><b>{money(leadBalance(lead))}</b><i>›</i></button>)}</div>
+          </div>
+        )}
+        {expandedStat === "conversion" && (
+          <div className="drawer-section stat-detail-section">
+            <div className="section-title"><h3>Конверсия по источникам</h3><span>успешные лиды / все лиды</span></div>
+            <div className="revenue-breakdown">{bySource.map(([source, stat]) => { const sourceLeads = leads.filter((lead) => lead.source === source); const success = sourceLeads.filter((lead) => lead.status === "Успешно").length; const rate = sourceLeads.length ? Math.round((success / sourceLeads.length) * 100) : 0; return <div key={source} className="revenue-row"><strong>{source}</strong><span className="muted">{success} из {sourceLeads.length}</span><span className="rev-earned">{rate}%</span></div>; })}</div>
+          </div>
+        )}
+        {expandedStat === "offer" && (
+          <div className="drawer-section stat-detail-section">
+            <div className="section-title"><h3>Распределение по офферам</h3><span>выручка и лиды</span></div>
+            <div className="revenue-breakdown">{byOffer.map(([offer, stat]) => <div key={offer} className="revenue-row"><strong>{offer}</strong><span className="muted">{stat.leads} лидов</span><span className="rev-earned">{money(stat.earned)}</span></div>)}</div>
+          </div>
+        )}
         <div className="drawer-section">
           <div className="section-title"><h3>Активность</h3><span className="live-pill">● онлайн</span></div>
           <div className="session-grid"><div><span>Последний вход</span><strong>{user.lastLogin}</strong></div><div><span>Текущая сессия</span><strong>{user.session}</strong></div><div><span>Среднее в день</span><strong>3 ч 14 мин</strong></div><div><span>Входов за месяц</span><strong>86</strong></div></div>
@@ -4541,6 +4560,9 @@ function MetricModal({
   const statusLeads = statusMatch ? leads.filter((lead) => lead.status === statusMatch) : [];
   const sourceLeads = sourceMatch ? leads.filter((lead) => lead.source === sourceMatch) : [];
   const [genKey, setGenKey] = useState<string | null>(null);
+  // Статистические раскрытия относятся к профилю пользователя, а не к этому модальному окну.
+  // Значение оставляем закрытым, чтобы старый фрагмент JSX не обращался к данным профиля.
+  const expandedStat = null;
   const makeKey = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let code = "MK-";
