@@ -1807,6 +1807,7 @@ function LeadsView({
 function TeamsView({ users, openUser, agent, setMetricModal, publishNews }: { users: User[]; openUser: (id: number) => void; agent: Agent; setMetricModal: (type: string) => void; publishNews: (title: string, text: string) => void }) {
   const isAdmin = agent.role === "admin";
   const visibleUsers = isAdmin ? users : users.filter((user) => user.team === agent.team);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [newsTitle, setNewsTitle] = useState("");
   const [newsText, setNewsText] = useState("");
   const publish = () => {
@@ -1892,7 +1893,7 @@ function TeamsView({ users, openUser, agent, setMetricModal, publishNews }: { us
         <Panel title="Все команды" subtitle="Доступно администратору">
           <div className="team-cards">
             {teams.map((team, index) => (
-              <article key={team.name} className="team-card">
+              <article key={team.name} className="team-card" role="button" tabIndex={0} onClick={() => setSelectedTeam(team.name)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedTeam(team.name); }}>
                 <span className="team-number">0{index + 1}</span>
                 <div className="team-title">
                   <span className="avatar avatar-team">{team.name.slice(0, 1)}</span>
@@ -1908,6 +1909,7 @@ function TeamsView({ users, openUser, agent, setMetricModal, publishNews }: { us
               </article>
             ))}
           </div>
+          {selectedTeam && <div className="team-detail-panel"><div className="section-title"><h3>Подробная аналитика · {selectedTeam}</h3><button className="row-action" onClick={() => setSelectedTeam(null)}>×</button></div><div className="team-detail-list">{users.filter((user) => user.team === selectedTeam).map((user) => <article key={user.id}><strong>{user.name}</strong><span>Роль: {user.role} · Лиды: {user.leads}</span><span>Выручка: {money(user.revenue)} · Конверсия: {user.conversion}%</span><button className="text-button" onClick={() => openUser(user.id)}>Открыть статистику →</button></article>)}</div></div>}
         </Panel>
       )}
     </>
@@ -2628,8 +2630,8 @@ const MODULE_CONTENT: Record<
     description: "Инструкции, регламенты и материалы для ежедневной работы команды.",
     status: "24 материала",
     stats: [
-      { label: "Инструкции", value: "12", hint: "актуальные версии" },
-      { label: "Регламенты", value: "7", hint: "для всех ролей" },
+      { label: "Популярные материалы", value: "12", hint: "открываются в Telegram" },
+      { label: "Быстрый старт", value: "7", hint: "пошаговая стратегия" },
       { label: "Обновлено", value: "5", hint: "за эту неделю" },
       { label: "Прочитано", value: "84%", hint: "сотрудников" },
     ],
@@ -3783,8 +3785,8 @@ function MediaView({ showToast }: { showToast: (message: string) => void }) {
       <div className="media-summary">
         <div className="media-kpi"><span>Суммарный охват</span><strong>{compact(totalReach)}</strong><small>по всем ресурсам</small></div>
         <div className="media-kpi"><span>Привлечено лидов</span><strong>{totalLeads}</strong><small>за период</small></div>
-        <div className="media-kpi"><span>Средний CPL</span><strong>{money(avgCpl)}</strong><small>стоимость лида</small></div>
-        <div className="media-kpi"><span>ROI</span><strong className={roi >= 100 ? "lime" : "pink"}>{roi}%</strong><small>окупаемость</small></div>
+        <div className="media-kpi"><span>Число подписчиков</span><strong>{compact(resources.reduce((sum, item) => sum + item.followers, 0))}</strong><small>по всем ресурсам</small></div>
+        <div className="media-kpi"><span>Заработано</span><strong className="lime">{money(resources.reduce((sum, item) => sum + item.revenue, 0))}</strong><small>доход с медиа</small></div>
       </div>
 
       <div className="media-resources">
@@ -3875,6 +3877,7 @@ function AccessView({
         <button className="primary-button" onClick={() => setShowKeyForm((value) => !value)}>＋ Создать ключ</button>
       </div>
       <PayoutCaps />
+      {showKeyForm && <label className="key-password-field"><span>Пароль / код доступа</span><input value={keyPassword} onChange={(event) => setKeyPassword(event.target.value)} placeholder="Оставьте пустым для генерации" /></label>}
       {showKeyForm && <div className="key-create-form"><label><span>Имя</span><input value={keyName} onChange={(event) => setKeyName(event.target.value)} placeholder="Имя участника" /></label><label><span>Роль</span><select value={keyRole} onChange={(event) => setKeyRole(event.target.value)}><option>Lead Generator</option><option>Team Lead</option><option>Leader</option><option>Influencer</option><option>Администратор</option></select></label><label><span>Команда</span><select value={keyTeam} onChange={(event) => setKeyTeam(event.target.value)}><option>Excellent</option><option>Северная</option><option>Вектор</option><option>Blogsphere</option></select></label><button className="primary-button" onClick={() => { const generated = `MK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; setKeys((current) => [{ generated, role: `${keyRole} · ${keyName || "Новый участник"} · ${keyTeam}`, used: "0 / 1", expires: "Без ограничения" }, ...current]); setKeyName(""); setShowKeyForm(false); }}>Создать ключ</button></div>}
       <div className="two-columns access-no-policy">
         <Panel title="Ключи доступа" subtitle="Для регистрации новых участников">
