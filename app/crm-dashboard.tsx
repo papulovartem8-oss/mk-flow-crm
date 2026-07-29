@@ -1806,6 +1806,7 @@ function LeadsView({
 
 function TeamsView({ users, openUser, agent, setMetricModal, publishNews }: { users: User[]; openUser: (id: number) => void; agent: Agent; setMetricModal: (type: string) => void; publishNews: (title: string, text: string) => void }) {
   const isAdmin = agent.role === "admin";
+  const visibleUsers = isAdmin ? users : users.filter((user) => user.team === agent.team);
   const [newsTitle, setNewsTitle] = useState("");
   const [newsText, setNewsText] = useState("");
   const publish = () => {
@@ -1814,12 +1815,12 @@ function TeamsView({ users, openUser, agent, setMetricModal, publishNews }: { us
     setNewsTitle("");
     setNewsText("");
   };
-  const totalRevenue = users.reduce((sum, user) => sum + user.revenue, 0);
-  const totalLeads = users.reduce((sum, user) => sum + user.leads, 0);
-  const avgConv = Math.round((users.reduce((sum, user) => sum + user.conversion, 0) / (users.length || 1)) * 10) / 10;
+  const totalRevenue = visibleUsers.reduce((sum, user) => sum + user.revenue, 0);
+  const totalLeads = visibleUsers.reduce((sum, user) => sum + user.leads, 0);
+  const avgConv = Math.round((visibleUsers.reduce((sum, user) => sum + user.conversion, 0) / (visibleUsers.length || 1)) * 10) / 10;
   const goal = 3_000_000;
   const goalPct = Math.min(100, Math.round((totalRevenue / goal) * 100));
-  const ranked = [...users].sort((a, b) => b.revenue - a.revenue);
+  const ranked = [...visibleUsers].sort((a, b) => b.revenue - a.revenue);
   const medals = ["🥇", "🥈", "🥉"];
   const teams = [
     { name: "Excellent", lead: "Дмитрий Волков", members: 7, leads: 184, revenue: 1284000, conversion: 52 },
@@ -3187,6 +3188,8 @@ function OffersView({ setMetricModal }: { setMetricModal: (type: string) => void
 function BlogsView({ showToast }: { showToast: (message: string) => void }) {
   const [filter, setFilter] = useState("Все направления");
   const [openRole, setOpenRole] = useState<string | null>(null);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskDraft, setTaskDraft] = useState({ title: "", owner: "Ассистент", direction: "Операционка", due: "Сегодня" });
   const [tasks, setTasks] = useState([
     { id: 1, owner: "Тимлид лидогенерации", direction: "Лидогенерация", title: "Сверить источники за неделю", due: "Сегодня", status: "В работе" },
     { id: 2, owner: "Тимлид РКО", direction: "РКО", title: "Обновить ставки банков", due: "Завтра", status: "Новая" },
@@ -3206,13 +3209,14 @@ function BlogsView({ showToast }: { showToast: (message: string) => void }) {
     return () => { cancelled = true; };
   }, []);
   return (
-    <>
-      <div className="page-title compact-title"><div><span className="eyebrow">Рабочий центр</span><h1>Блоки и задачи</h1><p>Тимлиды ведут свои направления, а ассистент собирает задачи и статусы в одном месте.</p></div><button className="primary-button" onClick={async () => { const draft = { title: "Новая задача без названия", owner: "Ассистент", direction: "Операционка", due: "Сегодня", status: "Новая" }; setTasks((current) => [{ id: Date.now(), ...draft }, ...current]); await fetch("/api/ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "task", ...draft }) }).catch(() => {}); showToast("Задача добавлена"); }}>＋ Добавить задачу</button></div>
+    <div className="overview-stack">
+      <div className="page-title compact-title"><div><span className="eyebrow">Рабочий центр</span><h1>Блоки и задачи</h1><p>Тимлиды ведут свои направления, а ассистент собирает задачи и статусы в одном месте.</p></div><button className="primary-button" onClick={() => setShowTaskForm(true)}>＋ Добавить задачу</button></div>
+      {showTaskForm && <div className="resource-add-form"><strong>Новая задача</strong><div className="form-grid"><label><span>Название</span><input autoFocus value={taskDraft.title} onChange={(event) => setTaskDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="Что нужно сделать" /></label><label><span>Ответственный</span><select value={taskDraft.owner} onChange={(event) => setTaskDraft((draft) => ({ ...draft, owner: event.target.value }))}>{["Тимлид лидогенерации", "Тимлид РКО", "Тимлид беттинга", "Тимлид МФО", "Ассистент"].map((owner) => <option key={owner}>{owner}</option>)}</select></label><label><span>Срок</span><input value={taskDraft.due} onChange={(event) => setTaskDraft((draft) => ({ ...draft, due: event.target.value }))} /></label></div><div className="resource-add-actions"><button className="primary-button" onClick={async () => { if (!taskDraft.title.trim()) { showToast("Напишите название задачи"); return; } const draft = { ...taskDraft, status: "Новая" }; setTasks((current) => [{ id: Date.now(), ...draft }, ...current]); await fetch("/api/ops", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "task", ...draft }) }).catch(() => {}); setTaskDraft({ title: "", owner: taskDraft.owner, direction: "Операционка", due: "Сегодня" }); setShowTaskForm(false); showToast("Задача добавлена"); }}>Создать</button><button className="text-button" onClick={() => setShowTaskForm(false)}>Отмена</button></div></div>}
       <div className="blog-role-grid">{["Тимлид лидогенерации", "Тимлид РКО", "Тимлид беттинга", "Тимлид МФО", "Ассистент"].map((role) => <article key={role}><span className="blog-role-icon">{role === "Ассистент" ? "A" : "T"}</span><div><strong>{role}</strong><small>{tasks.filter((task) => task.owner === role).length} задач · отчёт раз в день</small></div><button className="text-button" onClick={() => setOpenRole((current) => current === role ? null : role)}>Открыть →</button></article>)}</div>
       {openRole && <Panel title={openRole} subtitle="Задачи и текущий статус"><div className="task-list">{tasks.filter((task) => task.owner === openRole).map((task) => <div className="task-row" key={task.id}><strong>{task.title}</strong><span>{task.status}</span><small>{task.due}</small></div>)}</div></Panel>}
       <Panel title="Трекер задач" subtitle="Отметьте выполнение — прогресс сохраняется в текущей сессии"><div className="blog-filters">{directions.map((item) => <button className={filter === item ? "is-active" : ""} key={item} onClick={() => setFilter(item)}>{item}</button>)}</div><div className="task-list">{visible.map((task) => <article className={`task-row ${task.status === "Завершена" ? "is-done" : ""}`} key={task.id}><button className="task-check" onClick={() => { const next = task.status === "Завершена" ? "В работе" : "Завершена"; toggle(task.id); fetch("/api/ops", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "task", id: task.id, status: next }) }).catch(() => {}); }}>{task.status === "Завершена" ? "✓" : ""}</button><div><strong>{task.title}</strong><small>{task.owner} · {task.direction}</small></div><span>{task.due}</span><b>{task.status}</b><button className="row-action" onClick={() => removeTask(task.id)} aria-label="Удалить задачу">×</button></article>)}</div></Panel>
       <Panel title="Ежедневный отчёт" subtitle="Что тимлид должен подгрузить по итогам дня"><div className="blog-report-grid"><div><span>Выполненные задачи</span><strong>{tasks.filter((task) => task.status === "Завершена").length}</strong></div><div><span>В работе</span><strong>{tasks.filter((task) => task.status === "В работе").length}</strong></div><div><span>Новые блокеры</span><strong>2</strong></div><div><span>Готовность</span><strong>{Math.round((tasks.filter((task) => task.status === "Завершена").length / tasks.length) * 100)}%</strong></div></div></Panel>
-    </>
+    </div>
   );
 }
 
@@ -3861,6 +3865,7 @@ function AccessView({
   ]);
   const [showKeyForm, setShowKeyForm] = useState(false);
   const [keyName, setKeyName] = useState("");
+  const [keyPassword, setKeyPassword] = useState("");
   const [keyRole, setKeyRole] = useState("Lead Generator");
   const [keyTeam, setKeyTeam] = useState("Excellent");
   return (

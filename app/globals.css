@@ -9056,3 +9056,9 @@ body {
 .key-create-form label span { color: var(--muted); font-size: 12px; }
 .key-create-form input, .key-create-form select { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-2); color: var(--text); }
 @media (max-width: 700px) { .key-create-form { grid-template-columns: 1fr; } }
+.overview-stack { display: flex; flex-direction: column; }
+.overview-stack .page-title { order: 0; }
+.overview-stack .news-feed { order: 1; }
+.overview-stack .kpi-grid { order: 2; }
+.overview-stack .ai-brief { order: 3; }
+.overview-stack .dashboard-grid { order: 4; }
