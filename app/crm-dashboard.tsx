@@ -2705,7 +2705,7 @@ const MODULE_CONTENT: Record<
       { label: "Охват", value: "4,7 млн", hint: "+31%" },
       { label: "Переходы", value: "82 410", hint: "CTR 1,75%" },
       { label: "Лиды", value: "2 346", hint: "CR 2,85%" },
-      { label: "Средний CPL", value: "684 ₽", hint: "−9,4%" },
+      { label: "Заработано", value: "2,88 млн ₽", hint: "+18,6%" },
     ],
     listTitle: "Каналы привлечения",
     listSubtitle: "Результат и стоимость лида",
@@ -3879,6 +3879,7 @@ function AccessView({
       <PayoutCaps />
       {showKeyForm && <label className="key-password-field"><span>Пароль / код доступа</span><input value={keyPassword} onChange={(event) => setKeyPassword(event.target.value)} placeholder="Оставьте пустым для генерации" /></label>}
       {showKeyForm && <div className="key-create-form"><label><span>Имя</span><input value={keyName} onChange={(event) => setKeyName(event.target.value)} placeholder="Имя участника" /></label><label><span>Роль</span><select value={keyRole} onChange={(event) => setKeyRole(event.target.value)}><option>Lead Generator</option><option>Team Lead</option><option>Leader</option><option>Influencer</option><option>Администратор</option></select></label><label><span>Команда</span><select value={keyTeam} onChange={(event) => setKeyTeam(event.target.value)}><option>Excellent</option><option>Северная</option><option>Вектор</option><option>Blogsphere</option></select></label><button className="primary-button" onClick={() => { const generated = `MK-${Math.random().toString(36).slice(2, 8).toUpperCase()}`; setKeys((current) => [{ generated, role: `${keyRole} · ${keyName || "Новый участник"} · ${keyTeam}`, used: "0 / 1", expires: "Без ограничения" }, ...current]); setKeyName(""); setShowKeyForm(false); }}>Создать ключ</button></div>}
+      {showKeyForm && keyPassword.trim() && <button className="secondary-button key-save-custom" onClick={() => { const generated = keyPassword.trim(); setKeys((current) => [{ generated, role: `${keyRole} · ${keyName || "Новый участник"} · ${keyTeam}`, used: "0 / 1", expires: "Без ограничений" }, ...current]); setKeyName(""); setKeyPassword(""); setShowKeyForm(false); }}>Сохранить этот код доступа</button>}
       <div className="two-columns access-no-policy">
         <Panel title="Ключи доступа" subtitle="Для регистрации новых участников">
           <div className="access-keys">
