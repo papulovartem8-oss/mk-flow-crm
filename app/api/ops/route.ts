@@ -44,9 +44,14 @@ export async function PATCH(request: Request) {
   const auth = await requireSession(request);
   if (auth instanceof Response) return auth;
   try {
-    const body = (await request.json()) as { kind?: string; id?: number; status?: string };
-    if (body.kind !== "task" || !body.id || !body.status) return Response.json({ error: "Некорректная задача" }, { status: 400 });
-    const [updated] = await getDb().update(workTasks).set({ status: body.status, updatedAt: new Date().toISOString() }).where(eq(workTasks.id, body.id)).returning();
+    const body = (await request.json()) as { kind?: string; id?: number; status?: string; title?: string; owner?: string; due?: string };
+    if (body.kind !== "task" || !body.id || (!body.status && !body.title?.trim() && !body.owner?.trim() && !body.due?.trim())) return Response.json({ error: "Некорректная задача" }, { status: 400 });
+    const changes: { status?: string; title?: string; owner?: string; due?: string; updatedAt: string } = { updatedAt: new Date().toISOString() };
+    if (body.status) changes.status = body.status;
+    if (body.title?.trim()) changes.title = body.title.trim();
+    if (body.owner?.trim()) changes.owner = body.owner.trim();
+    if (body.due?.trim()) changes.due = body.due.trim();
+    const [updated] = await getDb().update(workTasks).set(changes).where(eq(workTasks.id, body.id)).returning();
     return updated ? Response.json({ task: updated }) : Response.json({ error: "Задача не найдена" }, { status: 404 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Не удалось обновить задачу" }, { status: 500 });
