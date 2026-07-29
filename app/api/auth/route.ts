@@ -10,7 +10,16 @@ export async function POST(request: Request) {
   try {
     const { name, code } = (await request.json()) as { name?: string; code?: string };
     const cleanName = (name ?? "").trim().slice(0, 80);
-    const normalized = (code ?? "").trim().toUpperCase();
+    // Принимаем и латинские коды, и привычные кириллические варианты
+    // (например, MK-АДМИН на мобильной раскладке).
+    const normalized = (code ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/АДМИН/g, "ADMIN")
+      .replace(/ЛИДЕР/g, "LEADER")
+      .replace(/ТИМ/g, "TEAM")
+      .replace(/ГЕН/g, "GEN")
+      .replace(/ИНФЛУ/g, "INFLU");
 
     if (!cleanName) {
       return Response.json({ error: "Введите имя агента" }, { status: 400 });
