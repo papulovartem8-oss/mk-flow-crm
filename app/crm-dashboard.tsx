@@ -1413,7 +1413,7 @@ function Overview({
   );
 
   return (
-    <>
+    <div className="overview-page">
       <div className="page-title">
         <div>
           <span className="eyebrow">23 июля · четверг</span>
@@ -1589,7 +1589,7 @@ function Overview({
           />
         </Panel>
       </div>
-    </>
+    </div>
   );
 }
 

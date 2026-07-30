@@ -9062,3 +9062,10 @@ body {
 .overview-stack .kpi-grid { order: 2; }
 .overview-stack .ai-brief { order: 3; }
 .overview-stack .dashboard-grid { order: 4; }
+.overview-page { display: flex; flex-direction: column; }
+.overview-page > .page-title { order: 0; }
+.overview-page > .news-feed { order: 1; }
+.overview-page > .kpi-grid { order: 2; }
+.overview-page > .ai-brief { order: 3; }
+.overview-page > .dashboard-grid { order: 4; }
+.overview-page > .overview-lower { order: 5; }
