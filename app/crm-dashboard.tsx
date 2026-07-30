@@ -78,11 +78,11 @@ const PERIOD_DESCRIPTIONS: Record<Period, string> = {
 };
 
 // Направления офферов (ТЗ) и статусы оффера по лиду.
-type Direction = "РКО" | "Беттинг" | "МФО";
+type Direction = "РКО" | "Регбиз" | "Беттинг" | "МФО";
 type OfferStatus = "Оформляется" | "Ждёт сверки" | "Одобрен";
 type TrafficKind = "Онлайн" | "Оффлайн";
 
-const DIRECTIONS: Direction[] = ["РКО", "Беттинг", "МФО"];
+const DIRECTIONS: Direction[] = ["РКО", "Регбиз", "Беттинг", "МФО"];
 const OFFER_STATUSES: OfferStatus[] = ["Оформляется", "Ждёт сверки", "Одобрен"];
 
 type OfferItem = {
@@ -155,6 +155,18 @@ const money = (value: number) =>
     currency: "RUB",
     maximumFractionDigits: 0,
   }).format(value);
+
+function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
+  const escape = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+  const csv = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 // Placeholder bindings keep legacy stat markup inert; the real resource form lives in MediaView.
 const adding = false;
@@ -473,6 +485,7 @@ function offerDirection(offer: OfferItem): Direction {
 // Полный каталог офферов по направлению — в пути лида показываем ВСЕ, даже
 // ещё не оформленные (ТЗ: статусы должны быть у всех, просто «Не оформлен»).
 const DIRECTION_CATALOG: Record<Direction, string[]> = {
+  "Регбиз": ["Регистрация бизнеса", "ИП на НПД", "Открытие расчётного счёта"],
   "РКО": ["Альфа-Банк", "Т-Банк", "ВТБ", "Газпромбанк", "Уралсиб", "ОТП"],
   "Беттинг": ["1xStavka", "Fonbet", "Winline", "Betboom"],
   "МФО": ["Займер", "МаниМен", "Веб-займ", "OTP Займ"],
@@ -685,6 +698,7 @@ function OfferStatusPill({ status }: { status: OfferStatus }) {
 }
 
 const DIRECTION_CLASS: Record<Direction, string> = {
+  "Регбиз": "dir-regbiz",
   "РКО": "dir-rko",
   "Беттинг": "dir-bet",
   "МФО": "dir-mfo",
@@ -1736,6 +1750,7 @@ function LeadsView({
           <select value={directionFilter} onChange={(event) => setDirectionFilter(event.target.value)}>
             <option>Все направления</option>
             <option>РКО</option>
+            <option>Регбиз</option>
             <option>Беттинг</option>
             <option>МФО</option>
           </select>
@@ -1746,7 +1761,7 @@ function LeadsView({
             <option>Успешно</option>
             <option>Отказ</option>
           </select>
-          <button className="secondary-button">⇩ Экспорт</button>
+          <button className="secondary-button" onClick={() => { downloadCsv("leads.csv", ["Клиент", "Источник", "Продукт", "Статус", "Сумма", "Менеджер"], leads.map((lead) => [lead.client, lead.source, lead.product, lead.status, lead.amount, lead.manager])); showToast("Выгрузка лидов скачана"); }}>⇩ Экспорт</button>
         </div>
         <div className="search-hint">
           <span>Искать можно по имени, телефону, @нику или источнику. Примеры:</span>
@@ -2243,7 +2258,7 @@ function AnalyticsView({
           <h1>Инсайды</h1>
           <p>Источники, конверсия, продукты, команды и динамика.</p>
         </div>
-        <div className="title-actions"><PeriodControl period={period} setPeriod={setPeriod} /><button className="secondary-button">⇩ Отчёт</button></div>
+        <div className="title-actions"><PeriodControl period={period} setPeriod={setPeriod} /><button className="secondary-button" onClick={() => { downloadCsv("analytics.csv", ["Источник", "Лиды", "Конверсия"], sourceStats.map((item) => [item.name, item.leads, `${item.conversion}%`])); showToast("Отчёт аналитики скачан"); }}>⇩ Отчёт</button></div>
       </div>
       <InsightsPanel showToast={showToast} />
       <div className="mini-kpis">
@@ -2786,7 +2801,7 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
       <>
         <div className="page-title compact-title">
           <div><span className="eyebrow">Admin Panel · головной мозг</span><h1>Статистика Медиа</h1><p>Все ресурсы привлечения, охваты и окупаемость. Медиа — отдельно от РКО.</p></div>
-          <button className="secondary-button" onClick={() => showToast("Формирую выгрузку по медиа (CSV)…")}>⇩ Общая выписка</button>
+          <button className="secondary-button" onClick={() => { downloadCsv("media-summary.csv", ["Ресурс", "Тип", "Подписчики", "Охват", "Лиды", "Затраты", "Доход", "ROI"], MEDIA_RESOURCES.map((item) => [item.name, item.type, item.followers, item.reach, item.leads, item.spend, item.revenue, `${Math.round((item.revenue / Math.max(1, item.spend)) * 100)}%`])); showToast("Выписка медиа скачана"); }}>⇩ Общая выписка</button>
         </div>
         <div className="media-summary">
           <div className="media-kpi"><span>Суммарный охват</span><strong>{compact(totalReach)}</strong><small>по всем ресурсам</small></div>
@@ -2816,7 +2831,7 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
     <>
       <div className="page-title compact-title">
         <div><span className="eyebrow">Admin Panel · головной мозг</span><h1>Статистика РКО</h1><p>Все команды, выручки и наша прибыль. Поиск слабых точек.</p></div>
-        <button className="secondary-button" onClick={() => showToast("Формирую полную выписку по РКО (CSV)…")}>⇩ Общая выписка</button>
+        <button className="secondary-button" onClick={() => { downloadCsv("rko-summary.csv", ["Команда", "Тимлид", "Лиды", "Апрувы", "Выручка", "Выплаты", "Прибыль", "Конверсия"], TEAM_STATS.map((team) => [team.team, team.lead, team.leads, team.approved, team.revenue, team.payout, team.revenue - team.payout, `${team.conversion}%`])); showToast("Выписка РКО скачана"); }}>⇩ Общая выписка</button>
       </div>
 
       {adding && <div className="resource-add-form"><strong>Добавить канал</strong><p>Вставьте ссылку на сам канал или страницу ресурса — например https://t.me/название, Instagram, VK или YouTube.</p><div className="form-grid"><label><span>Название ресурса</span><input value={resourceName} onChange={(event) => setResourceName(event.target.value)} placeholder="Например, Telegram-канал Финтрафик" /></label><label><span>Тип</span><select value={resourceType} onChange={(event) => setResourceType(event.target.value)}><option>Telegram</option><option>Instagram</option><option>VK</option><option>YouTube</option><option>Сайт</option></select></label><label className="full"><span>Ссылка на канал</span><input value={resourceUrl} onChange={(event) => setResourceUrl(event.target.value)} placeholder="https://t.me/..." /></label></div><div className="resource-add-actions"><button className="primary-button" onClick={() => { if (!resourceName.trim() || !resourceUrl.trim()) return; const base = MEDIA_RESOURCES[0]; setResources((current) => [{ ...base, id: Date.now(), name: resourceName.trim(), type: resourceType, url: resourceUrl.trim(), initials: resourceName.trim().slice(0, 2).toUpperCase(), audience: 0, dailyReach: 0, followers: 0, reach: 0, clicks: 0, leads: 0, spend: 0, revenue: 0, communities: [] }, ...current]); setResourceName(""); setResourceUrl(""); setAdding(false); showToast("Ресурс добавлен в медиа"); }}>Сохранить ресурс</button><button className="text-button" onClick={() => setAdding(false)}>Отмена</button></div></div>}
@@ -2886,7 +2901,7 @@ function AccountingView({ showToast }: { showToast: (message: string) => void })
     <>
       <div className="page-title compact-title">
         <div><span className="eyebrow">Admin Panel</span><h1>Бухгалтерский учёт</h1><p>Реестр выплат: кому, сколько, куда и статус оплаты.</p></div>
-        <button className="secondary-button" onClick={() => showToast(`Формирую реестр выплат за период: ${PAYOUTS.length} операций (CSV)…`)}>⇩ Экспорт реестра</button>
+        <button className="secondary-button" onClick={() => { downloadCsv("payout-register.csv", ["Получатель", "Команда", "Направление", "Сумма", "Куда", "Дата", "Статус"], PAYOUTS.map((pay) => [pay.recipient, pay.team, pay.direction, pay.amount, pay.method, pay.date, pay.status])); showToast("Реестр выплат скачан"); }}>⇩ Экспорт реестра</button>
       </div>
 
       <div className="media-summary">
