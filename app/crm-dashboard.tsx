@@ -2788,6 +2788,10 @@ const MEDIA_PROBLEMS = [
 function StatsView({ kind, showToast }: { kind: string; showToast: (message: string) => void }) {
   const isMedia = kind === "Медиа";
   const [selectedResource, setSelectedResource] = useState<MediaResource | null>(null);
+  const detailRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selectedResource) window.setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 0);
+  }, [selectedResource]);
 
   if (isMedia) {
     const totalReach = MEDIA_RESOURCES.reduce((sum, item) => sum + item.reach, 0);
@@ -2826,6 +2830,10 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
   const avgConv = Math.round(TEAM_STATS.reduce((sum, team) => sum + team.conversion, 0) / TEAM_STATS.length);
   const weak = [...TEAM_STATS].sort((a, b) => a.conversion - b.conversion)[0];
   const [selectedTeam, setSelectedTeam] = useState<typeof TEAM_STATS[number] | null>(null);
+  const teamDetailRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selectedTeam) window.setTimeout(() => teamDetailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 0);
+  }, [selectedTeam]);
 
   return (
     <>
@@ -2896,6 +2904,14 @@ function AccountingView({ showToast }: { showToast: (message: string) => void })
     result[pay.recipient] = current;
     return result;
   }, {});
+  const byTeam = PAYOUTS.reduce<Record<string, { total: number; paid: number; operations: number }>>((result, pay) => {
+    const current = result[pay.team] ?? { total: 0, paid: 0, operations: 0 };
+    current.total += pay.amount;
+    current.paid += pay.status === "Оплачено" ? pay.amount : 0;
+    current.operations += 1;
+    result[pay.team] = current;
+    return result;
+  }, {});
 
   return (
     <>
@@ -2910,6 +2926,13 @@ function AccountingView({ showToast }: { showToast: (message: string) => void })
         <div className="media-kpi"><span>К выплате</span><strong className="pink">{money(pending)}</strong><small>в обработке и ожидании</small></div>
         <div className="media-kpi"><span>Операций</span><strong>{PAYOUTS.length}</strong><small>в реестре</small></div>
       </div>
+
+      <Panel title="Сводка по сотрудникам и командам" subtitle="Кому начислено, сколько уже выплачено и что осталось к выплате">
+        <div className="accounting-group-grid">
+          <div><h3>Сотрудники</h3>{Object.entries(byRecipient).map(([recipient, item]) => <article key={recipient}><strong>{recipient}</strong><span>{item.operations} операций · начислено {money(item.total)}</span><b>Выплачено {money(item.paid)} · к выплате {money(item.total - item.paid)}</b></article>)}</div>
+          <div><h3>Команды</h3>{Object.entries(byTeam).map(([team, item]) => <article key={team}><strong>{team}</strong><span>{item.operations} операций · начислено {money(item.total)}</span><b>Выплачено {money(item.paid)} · к выплате {money(item.total - item.paid)}</b></article>)}</div>
+        </div>
+      </Panel>
 
       <Panel title="Реестр выплат" subtitle="Кому · что · куда · статус">
         <div className="table-scroll">

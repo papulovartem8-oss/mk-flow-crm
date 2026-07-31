@@ -9055,7 +9055,18 @@ body {
 .key-create-form label { display: grid; gap: 6px; }
 .key-create-form label span { color: var(--muted); font-size: 12px; }
 .key-create-form input, .key-create-form select { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-2); color: var(--text); }
+.team-stat-card.is-selected { border-color: #f7c900; box-shadow: 0 0 0 2px rgba(247,201,0,.22), 0 12px 30px rgba(247,201,0,.12); }
+.card-open-hint { display: block; margin-top: 10px; color: #f7c900; font-style: normal; font-size: 12px; }
+.expanded-detail { scroll-margin-top: 110px; animation: detail-in .24s ease both; }
+.accounting-group-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.accounting-group-grid > div { display: grid; gap: 8px; }
+.accounting-group-grid h3 { margin: 0 0 4px; color: var(--text); }
+.accounting-group-grid article { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.025); }
+.accounting-group-grid article span { color: var(--muted); font-size: 13px; }
+.accounting-group-grid article b { color: #f7c900; font-size: 13px; }
+@keyframes detail-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 700px) { .key-create-form { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .accounting-group-grid { grid-template-columns: 1fr; } }
 .overview-stack { display: flex; flex-direction: column; }
 .overview-stack .page-title { order: 0; }
 .overview-stack .news-feed { order: 1; }
