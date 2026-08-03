@@ -2820,7 +2820,7 @@ function StatsView({ kind, showToast }: { kind: string; showToast: (message: str
           {selectedResource && <div className="team-detail-panel expanded-detail" ref={detailRef}>
             <div className="section-title"><h3>Полная статистика · {selectedResource.name}</h3><button className="row-action" onClick={() => setSelectedResource(null)}>×</button></div>
             <div className="team-detail-list"><article><span>Аудитория: {compact(selectedResource.followers)} · охват: {compact(selectedResource.reach)}</span><span>Переходы: {compact(selectedResource.clicks)} · лиды: {selectedResource.leads}</span><span>CPL: {money(Math.round(selectedResource.spend / Math.max(1, selectedResource.leads)))} · затраты: {money(selectedResource.spend)}</span><b>Доход: {money(selectedResource.revenue)} · ROI: {Math.round((selectedResource.revenue / Math.max(1, selectedResource.spend)) * 100)}%</b></article></div>
-            <MediaResourceCard item={selectedResource} />
+            <MediaResourceCard item={selectedResource} initialOpen />
           </div>}
         </Panel>
       </>
@@ -3605,8 +3605,8 @@ function FunnelFlow({ stages, defaultOpen }: { stages: FunnelStage[]; defaultOpe
 }
 
 // Карточка одного медиа-ресурса по ТЗ заказчика.
-function MediaResourceCard({ item }: { item: MediaResource }) {
-  const [open, setOpen] = useState(false);
+function MediaResourceCard({ item, initialOpen = false }: { item: MediaResource; initialOpen?: boolean }) {
+  const [open, setOpen] = useState(initialOpen);
   const w = item.warmup;
   const publishedPosts = w.posts.filter((post) => post.published).length;
   const postsPct = w.posts.length ? Math.round((publishedPosts / w.posts.length) * 100) : 0;
